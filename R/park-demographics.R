@@ -13,6 +13,9 @@ park_postcodes <- read_excel(
   )
 
 park_coords <- park_postcodes %>%
+  mutate(
+    Postcode = gsub("\\s+", " ", Postcode)
+  ) %>%
   left_join(
     wm_postcodes,
     by = join_by("Postcode")
