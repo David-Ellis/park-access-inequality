@@ -1,6 +1,7 @@
 library(readxl)
 library(BSol.mapR)
 library(writexl)
+library(ggplot2)
 source("functions.R")
 
 park_postcodes <- read_excel(
@@ -125,3 +126,43 @@ head(all_park_info)
 
 # Save output
 write_xlsx(all_park_info, "../output/park_demographics.xlsx")
+
+############################################################################
+#                          Basic Visualisations                            #
+############################################################################
+
+# Population distribution
+pop_plt <- ggplot(all_park_info,
+              aes(
+                x = Total_Population
+              )) +
+  geom_histogram(bins = 40, fill = "#1f77b4") +
+  labs(
+    y = "Number of Parks",
+    x = "Estimated Population in 10-Minute Walking Distance"
+  ) +
+  theme_bw()
+pop_plt
+ggsave("../output/pop_dist.png", plot = pop_plt,
+       width = 5, height = 3, dpi = 300)
+
+# IMD distribution
+pop_plt <- ggplot(all_park_info,
+                  aes(
+                    x = IMD_decile
+                  )) +
+  geom_bar(fill = "#1f77b4") +
+  labs(
+    y = "Number of Parks",
+    x = "IMD Decile"
+  ) +
+  theme_bw() +
+  scale_x_continuous(
+    breaks = 1:10,
+    labels = c("1\n(Most Deprived)", "2", "3", "4", "5",
+               "6", "7", "8", "9", "10\n(Least Deprived)"),
+    limits = c(0.5,10.5)
+  )
+pop_plt
+ggsave("../output/imd_dist.png", plot = pop_plt,
+       width = 5, height = 3, dpi = 300)
