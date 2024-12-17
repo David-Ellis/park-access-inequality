@@ -194,3 +194,49 @@ get_park_info <- function(
 
     return(output_df)
 }
+
+get_all_park_info <- function(
+    park_df,
+    dist_m,
+    verbose = F
+) {
+  df_list <- list()
+
+  for (i in 1:nrow(park_df)) {
+    if (verbose) {
+      print(park_df$Park_Name[i])
+    }
+
+    df_list[[i]] <- get_park_info(
+      park_df,
+      i,
+      dist_m
+    ) %>%
+      tidyr::pivot_wider(
+        names_from = Metric,
+        values_from = Value
+      )
+  }
+  output_df <- data.table::rbindlist(df_list) %>%
+    # Convert numeric data back to numeric
+    mutate(
+      across(c(IMD_rank,IMD_quintile,IMD_decile,
+               `Asian, Asian British or Asian Welsh`,
+               `Black, Black British, Black Welsh, Caribbean or African`,
+               `Mixed or Multiple ethnic groups`,
+               `Other ethnic group`,
+               `Total_Population`,
+               White),
+             as.numeric
+             )
+    ) %>%
+    select(
+      Park_Name, Postcode, IMD_rank, IMD_quintile, IMD_decile, Total_Population,
+      `Asian, Asian British or Asian Welsh`,
+      `Black, Black British, Black Welsh, Caribbean or African`,
+      `Mixed or Multiple ethnic groups`,
+      `Other ethnic group`,
+      White
+    )
+  return(output_df)
+}
