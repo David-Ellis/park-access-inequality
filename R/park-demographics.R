@@ -10,7 +10,8 @@ park_postcodes <- read_excel(
   ) %>%
   mutate(
     Park_Name = `SITE  NAME`,
-    Postcode = POSTCODE
+    Postcode = POSTCODE,
+    Area_sq_m = `square meters`
   )
 
 park_coords <- park_postcodes %>%
@@ -107,13 +108,13 @@ invalid_park_info <- park_coords %>%
     is.na(Longitude)
   ) %>%
   select(
-    Park_Name, Postcode
+    Park_Name, Postcode, Area_sq_m
   ) %>%
   mutate(
     !!!setNames(
       rep(list(NA),
-          length(colnames(all_park_info)[2:11])),
-      colnames(all_park_info)[2:11])
+          length(colnames(valid_park_info)[3:12])),
+      colnames(valid_park_info)[3:12])
     )
 
 # combine valid and invalid park data

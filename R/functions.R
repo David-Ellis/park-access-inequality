@@ -186,8 +186,12 @@ get_park_info <- function(
     )
 
   output_df <- data.frame(
-    Metric = c("Park_Name", "Postcode"),
-    Value = c(park_df$Park_Name[index], park_df$Postcode[index])
+    Metric = c("Park_Name", 
+               "Postcode", 
+               "Area_sq_m"),
+    Value = c(park_df$Park_Name[index],
+              park_df$Postcode[index], 
+              park_df$Area_sq_m[index])
     ) %>%
     rbind(park_imd) %>%
     rbind(park_pops)
@@ -220,7 +224,8 @@ get_all_park_info <- function(
   output_df <- data.table::rbindlist(df_list) %>%
     # Convert numeric data back to numeric
     mutate(
-      across(c(IMD_rank,IMD_quintile,IMD_decile,
+      across(c(Area_sq_m, 
+               IMD_rank,IMD_quintile,IMD_decile,
                `Asian, Asian British or Asian Welsh`,
                `Black, Black British, Black Welsh, Caribbean or African`,
                `Mixed or Multiple ethnic groups`,
@@ -231,7 +236,9 @@ get_all_park_info <- function(
              )
     ) %>%
     select(
-      Park_Name, Postcode, IMD_rank, IMD_quintile, IMD_decile, Total_Population,
+      Park_Name, Postcode, Area_sq_m, 
+      IMD_rank, IMD_quintile, IMD_decile, 
+      Total_Population,
       `Asian, Asian British or Asian Welsh`,
       `Black, Black British, Black Welsh, Caribbean or African`,
       `Mixed or Multiple ethnic groups`,
