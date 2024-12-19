@@ -26,7 +26,7 @@ map <- plot_empty_map(
 
 map <- add_radii(
   map,
-  park_postcodes,
+  park_coords,
   radii = dist_10_min_walk_km,
   alpha = 0.1,
   color = "darkgreen"
@@ -34,7 +34,7 @@ map <- add_radii(
 
 map <- add_points(
   map,
-  park_postcodes,
+  park_coords,
   color = "black"
 )
 
@@ -71,7 +71,7 @@ map
 
 park_info <- get_park_info(
   park_coords,
-  index = example_index,
+  park_name = "Sutton Park",
   dist_10_min_walk_km*1000)
 
 print(park_info)
