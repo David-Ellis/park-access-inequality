@@ -2,28 +2,51 @@ library("readxl")
 library("dplyr")
 library("ggplot2")
 
+park_sizes <- read_excel(
+  "../data/park_multi_access_info_2024.xlsx",
+  "Park Info"
+) %>%
+  select(
+    Site_Name,
+    Area_Acres
+  ) 
+
 park_access_by_eth <- read_excel("../output/park_demographics.xlsx") %>%
+  left_join(
+    park_sizes,
+    by = join_by("Site_Name")) %>%
   # White pop only has greatest access by area when including Sutton Park
   # filter(Park_Name != "Sutton Park") %>%
+  mutate(
+    Park = case_when(
+      Site_Name == "Sutton Park" ~ "Sutton Park",
+      TRUE ~ "Other Parks"
+    )
+  ) %>%
   select(
     `Asian, Asian British or Asian Welsh`,
     `Black, Black British, Black Welsh, Caribbean or African`,
     `Mixed or Multiple ethnic groups`,
     `Other ethnic group`, 
     `White`,
-    Area_sq_m
+    #Park,
+    Area_Acres
     ) %>%
   tidyr::pivot_longer(
-    cols = !Area_sq_m,
+    cols = !c(#Park, 
+      Area_Acres),
     names_to = "Ethnic_Group",
     values_to = "Park_access_count") %>%
-  group_by(Ethnic_Group) %>%
+  group_by(
+    Ethnic_Group#, 
+    #Park
+    ) %>%
   summarise(
     Total_Park_access_count = sum(
       Park_access_count, na.rm=TRUE
       ),
-    Area_Access_sq_m = sum(
-      Park_access_count * Area_sq_m, na.rm=TRUE
+    Area_Access_Acres = sum(
+      Park_access_count * Area_Acres, na.rm=TRUE
     )
   )
 
@@ -49,7 +72,7 @@ avg_parks_accessible <- park_access_by_eth %>%
   mutate(
     Ethnic_Group = stringr::str_wrap(Ethnic_Group, 18),
     Avg_Parks_Accessible = Total_Park_access_count / Total_Count,
-    Avg_Area_Access_sq_m = Area_Access_sq_m / Total_Count,
+    Avg_Area_Access_Acres = Area_Access_Acres / Total_Count,
     
   )
   
@@ -75,7 +98,7 @@ ggsave("../output/figures/park_count_access.png", plot = count_plt,
 
 area_plt <- ggplot(
   avg_parks_accessible, 
-  aes(x = Ethnic_Group, y = Avg_Area_Access_sq_m/4046.856)
+  aes(x = Ethnic_Group, y = Avg_Area_Access_Acres)
 ) +
   geom_col(fill = "#1f77b4", color = "black") +
   theme_bw() +
@@ -84,7 +107,7 @@ area_plt <- ggplot(
     y = "Average Area of Parks (Acres)\nwithin 10 minutes walking distance"
   ) +
   scale_y_continuous(
-    limits = c(0, 70),
+    limits = c(0, 200),
     expand  = c(0,0)
   )
 area_plt

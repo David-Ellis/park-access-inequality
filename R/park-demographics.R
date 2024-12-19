@@ -4,25 +4,10 @@ library(writexl)
 library(ggplot2)
 source("functions.R")
 
-park_postcodes <- read_excel(
-  "../data/PARKS-WHITE-BOOK-2021.xlsx",
-  sheet = "PARKS 2021"
-  ) %>%
-  mutate(
-    Park_Name = `SITE  NAME`,
-    Postcode = POSTCODE,
-    Area_sq_m = `square meters`
-  )
-
-park_coords <- park_postcodes %>%
-  mutate(
-    Postcode = gsub("\\s+", " ", Postcode)
-  ) %>%
-  left_join(
-    # Loaded with functions.R
-    wm_postcodes,
-    by = join_by("Postcode")
-  )
+park_coords <- read_excel(
+  "../data/park_multi_access_info_2024.xlsx",
+  "Park Locations"
+)
 
 # Assuming walking speed of 5 km/hr
 dist_10_min_walk_km = 10 * 5 / 60
@@ -60,12 +45,14 @@ save_map(map, "../output/figures/park_spheres.png")
 #      Estimate percentage LSOA coverage from each park  (Example)         #
 ############################################################################
 
+
+
 # Get all postcodes in each LSOA within 10 minutes walking distance
 LSOA_coverage <- get_LSOA_coverage(
-  park_coords$Latitude[example_index],
-  park_coords$Longitude[example_index],
+  park_coords,
+  "Sutton Park",
   dist_m = dist_10_min_walk_km*1000
-  )
+)
 
 # Plot postcode coverage percentage
 map <- plot_map(
@@ -73,11 +60,11 @@ map <- plot_map(
   value_header = "overlap_perc",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = park_coords$Park_Name,
+  map_title = park_coords$Site_Name,
   fill_missing = 0,
   style = "cont"
 )
-
+map
 ############################################################################
 #                Estimate park local demographics (Example)                #
 ############################################################################
@@ -92,15 +79,15 @@ print(park_info)
 ############################################################################
 #             Estimate all park local population demographics              #
 ############################################################################
-
+source("functions.R")
 # Restrict to parks with valid postcodes
-valid_park_postcodes <- park_coords %>%
+valid_park_coords <- park_coords %>%
   filter(
     !is.na(Longitude)
   )
 
 valid_park_info <- get_all_park_info(
-  valid_park_postcodes,
+  valid_park_coords,
   dist_10_min_walk_km*1000
   )
 
@@ -110,13 +97,13 @@ invalid_park_info <- park_coords %>%
     is.na(Longitude)
   ) %>%
   select(
-    Park_Name, Postcode, Area_sq_m
+    Site_Name, 
   ) %>%
   mutate(
     !!!setNames(
       rep(list(NA),
-          length(colnames(valid_park_info)[3:12])),
-      colnames(valid_park_info)[3:12])
+          length(colnames(valid_park_info)[2:10])),
+      colnames(valid_park_info)[2:10])
     )
 
 # combine valid and invalid park data
@@ -139,14 +126,14 @@ pop_plt <- ggplot(all_park_info,
               aes(
                 x = Total_Population
               )) +
-  geom_histogram(bins = 40, fill = "#1f77b4") +
+  geom_histogram(bins = 30, fill = "#1f77b4") +
   labs(
     y = "Number of Parks",
     x = "Estimated Population in 10-Minute Walking Distance"
   ) +
   theme_bw() +
   scale_y_continuous(
-    limits = c(0, 35),
+    limits = c(0, 60),
     expand = c(0, 0)
   )
 pop_plt
