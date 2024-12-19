@@ -3,6 +3,8 @@ library("dplyr")
 library("ggplot2")
 
 park_access_by_eth <- read_excel("../output/park_demographics.xlsx") %>%
+  # White pop only has greatest access by area when including Sutton Park
+  # filter(Park_Name != "Sutton Park") %>%
   select(
     `Asian, Asian British or Asian Welsh`,
     `Black, Black British, Black Welsh, Caribbean or African`,
@@ -68,7 +70,7 @@ count_plt <- ggplot(
     expand  = c(0,0)
     )
 count_plt
-ggsave("../output/park_count_access.png", plot = count_plt, 
+ggsave("../output/figures/park_count_access.png", plot = count_plt, 
        width = 6, height = 4, dpi = 300)
 
 area_plt <- ggplot(
@@ -86,5 +88,5 @@ area_plt <- ggplot(
     expand  = c(0,0)
   )
 area_plt
-ggsave("../output/park_area_access.png", plot = area_plt, 
+ggsave("../output/figures/park_area_access.png", plot = area_plt, 
        width = 6, height = 4, dpi = 300)

@@ -19,6 +19,7 @@ park_coords <- park_postcodes %>%
     Postcode = gsub("\\s+", " ", Postcode)
   ) %>%
   left_join(
+    # Loaded with functions.R
     wm_postcodes,
     by = join_by("Postcode")
   )
@@ -54,6 +55,7 @@ map <- add_points(
 
 map
 
+save_map(map, "../output/figures/park_spheres.png")
 ############################################################################
 #      Estimate percentage LSOA coverage from each park  (Example)         #
 ############################################################################
@@ -66,7 +68,7 @@ LSOA_coverage <- get_LSOA_coverage(
   )
 
 # Plot postcode coverage percentage
-plot_map(
+map <- plot_map(
   LSOA_coverage,
   value_header = "overlap_perc",
   map_type = "LSOA21",
@@ -142,9 +144,13 @@ pop_plt <- ggplot(all_park_info,
     y = "Number of Parks",
     x = "Estimated Population in 10-Minute Walking Distance"
   ) +
-  theme_bw()
+  theme_bw() +
+  scale_y_continuous(
+    limits = c(0, 35),
+    expand = c(0, 0)
+  )
 pop_plt
-ggsave("../output/pop_dist.png", plot = pop_plt,
+ggsave("../output/figures/pop_dist.png", plot = pop_plt,
        width = 5, height = 3, dpi = 300)
 
 # IMD distribution
@@ -162,8 +168,13 @@ pop_plt <- ggplot(all_park_info,
     breaks = 1:10,
     labels = c("1\n(Most Deprived)", "2", "3", "4", "5",
                "6", "7", "8", "9", "10\n(Least Deprived)"),
-    limits = c(0.5,10.5)
+    limits = c(0.5,10.5),
+    expand  = c(0,0)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 150),
+    expand = c(0, 0)
   )
 pop_plt
-ggsave("../output/imd_dist.png", plot = pop_plt,
+ggsave("../output/figures/imd_dist.png", plot = pop_plt,
        width = 5, height = 3, dpi = 300)
