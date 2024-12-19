@@ -55,18 +55,36 @@ LSOA21_postcode_counts <- wm_postcodes %>%
   rename(Total_Postcodes = n)
 
 get_LSOA_coverage <- function(
-  lat,
-  long,
+  # Data frame for all parks including longitude and latitude of each
+  # entrance point
+  all_park_data, 
+  park_name,
   dist_m
 ) {
-  # Get all postcodes in each LSOA within 10 minutes walking distance
-  LSOA_coverage <- purrr::map2_dfr(
-    lat,
-    long,
-    ~spatialrisk::points_in_circle(wm_postcodes, .y, .x,
-                                   lon = Longitude,
-                                   lat = Latitude,
-                                   radius = dist_m)) %>%
+  
+  # Filter for selected park
+  park_data <- all_park_data %>%
+    filter(Site_Name == park_name)
+  
+  n_points <- nrow(park_data)
+  
+  all_postcodes <- list()
+  # Look over all coordinates to get all overlapping postcodes
+  for (i in 1:n_points) {
+    # Get all postcodes in each LSOA within 10 minutes walking distance
+    postcodes_i <- purrr::map2_dfr(
+      park_data$Latitude[i],
+      park_data$Longitude[i],
+      ~spatialrisk::points_in_circle(wm_postcodes, .y, .x,
+                                     lon = Longitude,
+                                     lat = Latitude,
+                                     radius = dist_m))
+    all_postcodes[[i]] <- postcodes_i %>%
+      select(Postcode, LSOA21)
+  }
+  LSOA_coverage <- data.table::rbindlist(all_postcodes) %>%
+    # Remove double counted postcodes
+    distinct() %>%
     # count number of postcodes within each LSOA
     count(LSOA21) %>%
     # Join to total number of postcodes in each LSOA
@@ -156,12 +174,13 @@ get_park_imd <- function(LSOA_pops) {
 
 get_park_info <- function(
     park_df,
-    index,
+    park_name,
     dist_m
 ) {
+  
   LSOA_coverage <- get_LSOA_coverage(
-    park_df$Latitude[index],
-    park_df$Longitude[index],
+    park_df,
+    park_name,
     dist_m = dist_m
   )
 
@@ -186,12 +205,8 @@ get_park_info <- function(
     )
 
   output_df <- data.frame(
-    Metric = c("Park_Name", 
-               "Postcode", 
-               "Area_sq_m"),
-    Value = c(park_df$Park_Name[index],
-              park_df$Postcode[index], 
-              park_df$Area_sq_m[index])
+    Metric = c("Site_Name"),
+    Value = c(park_name)
     ) %>%
     rbind(park_imd) %>%
     rbind(park_pops)
@@ -206,14 +221,17 @@ get_all_park_info <- function(
 ) {
   df_list <- list()
 
-  for (i in 1:nrow(park_df)) {
+  
+  park_names <- park_df$Site_Name
+  
+  for (name_i in park_names) {
     if (verbose) {
-      print(park_df$Park_Name[i])
+      print(park_df$Site_Name[i])
     }
 
-    df_list[[i]] <- get_park_info(
+    df_list[[name_i]] <- get_park_info(
       park_df,
-      i,
+      name_i,
       dist_m
     ) %>%
       tidyr::pivot_wider(
@@ -224,19 +242,18 @@ get_all_park_info <- function(
   output_df <- data.table::rbindlist(df_list) %>%
     # Convert numeric data back to numeric
     mutate(
-      across(c(Area_sq_m, 
-               IMD_rank,IMD_quintile,IMD_decile,
+      across(c(IMD_rank,IMD_quintile,IMD_decile,
+               `Total_Population`,
                `Asian, Asian British or Asian Welsh`,
                `Black, Black British, Black Welsh, Caribbean or African`,
                `Mixed or Multiple ethnic groups`,
                `Other ethnic group`,
-               `Total_Population`,
                White),
              as.numeric
              )
     ) %>%
     select(
-      Park_Name, Postcode, Area_sq_m, 
+      Site_Name, 
       IMD_rank, IMD_quintile, IMD_decile, 
       Total_Population,
       `Asian, Asian British or Asian Welsh`,
