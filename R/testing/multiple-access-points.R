@@ -105,12 +105,3 @@ for (site_i in multi_site_parks) {
   )
   save_map(map, save_name)
 }
-
-source("functions.R")
-get_park_info(
-  park_coords,
-  "Sutton Park",
-  dist_10_min_walk_km * 1000
-)
-
-
