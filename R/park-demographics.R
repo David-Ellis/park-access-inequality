@@ -15,7 +15,6 @@ dist_10_min_walk_km = 10 * 5 / 60
 # Example park index
 example_index = 2
 
-
 #############################################################
 #             Plot Park 10 Minute Walking Radii             #
 #############################################################
@@ -91,6 +90,12 @@ valid_park_info <- get_all_park_info(
   dist_10_min_walk_km*1000
   )
 
+
+get_park_info(
+  valid_park_coords,
+  "Rectory Park",
+  dist_10_min_walk_km*1000
+)
 # Create NA dataframe for parks with invalid postcodes
 invalid_park_info <- park_coords %>%
   filter(
@@ -122,7 +127,7 @@ write_xlsx(all_park_info, "../output/park_demographics.xlsx")
 ############################################################################
 
 # Population distribution
-pop_plt <- ggplot(all_park_info,
+dist_distrib <- ggplot(all_park_info,
               aes(
                 x = Total_Population
               )) +
@@ -136,12 +141,12 @@ pop_plt <- ggplot(all_park_info,
     limits = c(0, 60),
     expand = c(0, 0)
   )
-pop_plt
-ggsave("../output/figures/pop_dist.png", plot = pop_plt,
+dist_distrib
+ggsave("../output/figures/pop_dist.png", plot = dist_distrib,
        width = 5, height = 3, dpi = 300)
 
 # IMD distribution
-pop_plt <- ggplot(all_park_info,
+IMD_dist_plt <- ggplot(all_park_info,
                   aes(
                     x = IMD_decile
                   )) +
@@ -162,6 +167,6 @@ pop_plt <- ggplot(all_park_info,
     limits = c(0, 150),
     expand = c(0, 0)
   )
-pop_plt
-ggsave("../output/figures/imd_dist.png", plot = pop_plt,
+IMD_dist_plt
+ggsave("../output/figures/imd_dist.png", plot = IMD_dist_plt,
        width = 5, height = 3, dpi = 300)
