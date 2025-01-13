@@ -222,12 +222,10 @@ get_all_park_info <- function(
   df_list <- list()
 
   
-  park_names <- park_df$Site_Name
+  park_names <- unique(park_df$Site_Name)
   
   for (name_i in park_names) {
-    if (verbose) {
-      print(park_df$Site_Name[i])
-    }
+
 
     df_list[[name_i]] <- get_park_info(
       park_df,
@@ -238,7 +236,15 @@ get_all_park_info <- function(
         names_from = Metric,
         values_from = Value
       )
+    
+    if (verbose) {
+      print(paste(
+        name_i, ncol(df_list[[name_i]]))
+      )
+    }
   }
+  
+  
   output_df <- data.table::rbindlist(df_list) %>%
     # Convert numeric data back to numeric
     mutate(
