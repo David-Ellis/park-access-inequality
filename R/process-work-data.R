@@ -3,65 +3,126 @@ library(writexl)
 library(data.table)
 library(dplyr)
 
-# Get data lists
+# Get data lists for fly tipping
 flytip_files <- list.files(pattern = "FLY TIP AWO TOTALS INC OLDSITEREF.*.xlsx", recursive = TRUE)
+# Get data lists for maintenance
 maintenance_files <- list.files(pattern = "BoQ.*.xlsx", recursive = TRUE)
 
-# Load and combine fly-tipping data
+# Load parks white book to filter maintenance and fly tipping data
+parks <- read_excel(
+  "data/park_multi_access_info_2024.xlsx",
+  sheet = "Park Info"
+)
+
+##################################################################
+#                       Fly tipping data                         #
+##################################################################
+
+# Create empty list to store all the fly tipping tables in
 fly_tip_list <- list()
+
+# Loop over all fly tipping data files
 for (flytip_i in flytip_files) {
+  # Get financial year from file name
   year_i <- strsplit(flytip_i, "/")[[1]][3]
+  
+  # Load next spreadsheet in list
   data_i <- read_excel(
     flytip_i,
     sheet = "DATA"
   ) %>%
+    # Only take rows with a valid work ID (to remove totals at the bottom of the sheet)
     filter(!is.na(WORKID)) %>%
     mutate(
+      # Create financial year column
       Year = year_i,
+      # Extract the numerical start of the year e.g. "2021-22" -> 2021
       YearStart = as.numeric(strsplit(year_i, "-")[[1]][1]),
-      COST = as.numeric(COST),
+      # Convert any cost data stored as characters to numeric
+      Cost = as.numeric(COST),
+      # Update Old site ref column title
+      Old_Site_Ref  = OLDSITEREF
     ) %>%
+    # Select only needed columns
+    # (Not keeping name in case different names are used for the same site)
     select(
-      # Removing dates for now because I can't figure out how to convert
-      # them properly
-      -any_of(c("...13", "DTCREATE", "ACTCMPLTD"))
+      Old_Site_Ref, Year, YearStart, Cost
     )
+  
+  # Store this data frame in a list to combine later
   fly_tip_list[[year_i]] <- data_i
 }
-# combine
-flytip_data <- rbindlist(fly_tip_list)
-# save
+
+
+# combine all tables in the list
+flytip_data <- rbindlist(fly_tip_list) %>%
+  # Calculate total yearly cost for each Site
+  group_by(
+    Old_Site_Ref, Year, YearStart
+  ) %>%
+  summarise(
+    Cost = sum(Cost)
+  ) %>%
+  # Filter data to only include data in the 2023 White Book 
+  filter(
+    Old_Site_Ref %in% parks$Old_Site_Ref
+  )
+
+# Save fly tipping data to an excel file
 write_xlsx(flytip_data, "data/park-work-records/fly-tipping-all-years.xlsx")
 
-# Load and combine maintenance data
+##################################################################
+#                       Maintenance data                         #
+##################################################################
+
+# Create empty list to store all the maintenance tables in
 maint_list <- list()
+
+# Loop over all maintenance data files
 for (maint_i in maintenance_files) {
+  # Get financial year from file name
   year_i <- strsplit(maint_i, "/")[[1]][3]
+  
+  # Load next spreadsheet in list
   data_i <- read_excel(
     maint_i,
     sheet = "DATA"
   ) %>%
+    # Only take rows with a valid CONTRACT ID (to remove totals at the bottom of the sheet)
     filter(!is.na(CONTRACT)) %>%
     mutate(
+      # Create financial year column
       Year = year_i,
-      YearStart = as.numeric(strsplit(year_i, "-")[[1]][1])
+      # Extract the numerical start of the year e.g. "2021-22" -> 2021
+      YearStart = as.numeric(strsplit(year_i, "-")[[1]][1]),
+      # Convert any cost data stored as characters to numeric
+      Cost = as.numeric(`TOTAL COST INC ON COST`),
+      # Update Old site ref column title
+      Old_Site_Ref  = `OLD SITE REF`
     ) %>%
+    # Select only needed columns
+    # (Not keeping name in case different names are used for the same site)
     select(
-     c(
-       "Year", "YearStart",
-       "CONTRACT", "CUST TYPE","BUDGET CODE",
-       "BUDGET GROUP", "BUDGET HEAD", "BH DESCR",
-       "PORTFOLIO", "COST CENTRE", "SUBJCODE",
-       "OLD SITE REF", "SITE NAME", "POSTCODE",
-       "CONSTITUENCY", "WARD", "WARD DESCR",
-       "ASSET TYPE", "ASSET TYPE DESC", "SOR", "SOR DESCR",
-       "WSKEY", "WORK SCHD", "WORK SCHD DESCR", "WORK SCHD SIMPLE",
-       "RATE PER OCCASION INC ON COST", "TOTAL COST INC ON COST"
-       
-     )
+      Old_Site_Ref, Year, YearStart, Cost
     )
+  
+  # Store this data frame in a list to combine later
   maint_list[[year_i]] <- data_i
 }
 
-maintenance_data <- rbindlist(maint_list)
+# combine all tables in the list
+maintenance_data <- rbindlist(maint_list) %>%
+  # Calculate total yearly cost for each Site
+  group_by(
+    Old_Site_Ref, Year, YearStart
+  ) %>%
+  summarise(
+    Cost = sum(Cost)
+  )%>%
+  # Filter data to only include data in the 2023 White Book 
+  filter(
+    Old_Site_Ref %in% parks$Old_Site_Ref
+  )
+
+# Save maintenance data to an excel file
 write_xlsx(maintenance_data, "data/park-work-records/maintenance-all-years.xlsx")
