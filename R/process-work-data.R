@@ -1,9 +1,10 @@
 library(readxl)
 library(writexl)
 library(data.table)
+library(dplyr)
 
 # Get data lists
-flytip_files <- list.files(pattern = "FLY.*.xlsx", recursive = TRUE)
+flytip_files <- list.files(pattern = "FLY TIP AWO TOTALS INC OLDSITEREF.*.xlsx", recursive = TRUE)
 maintenance_files <- list.files(pattern = "BoQ.*.xlsx", recursive = TRUE)
 
 # Load and combine fly-tipping data
@@ -19,9 +20,6 @@ for (flytip_i in flytip_files) {
       Year = year_i,
       YearStart = as.numeric(strsplit(year_i, "-")[[1]][1]),
       COST = as.numeric(COST),
-      # # Fix weird date issue
-      # DTCREATE = openxlsx::convertToDate(DTCREATE),
-      # ACTCMPLTD = openxlsx::convertToDate(DTCREATE)
     ) %>%
     select(
       # Removing dates for now because I can't figure out how to convert
