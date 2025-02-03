@@ -7,7 +7,7 @@ Mode <- function(x) {
 }
 
 wm_postcodes <- read.csv(
-  "../data/West Midlands postcodes.csv"
+  "data/West Midlands postcodes.csv"
 ) %>%
   mutate(
     LSOA21 = LSOA21.Code,
@@ -25,7 +25,7 @@ LSOA21_IMDs <- wm_postcodes %>%
 
 # Number of each broad ethnic
 wm_eths <- read.csv(
-  "../data/Census21_WestMids_LSOA_ethnicity.csv"
+  "data/Census21_WestMids_LSOA_ethnicity.csv"
 ) %>%
   rename(
     LSOA21 = Lower.layer.Super.Output.Areas.Code,

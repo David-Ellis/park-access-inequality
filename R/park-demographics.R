@@ -2,10 +2,10 @@ library(readxl)
 library(BSol.mapR)
 library(writexl)
 library(ggplot2)
-source("functions.R")
+source("R/functions.R")
 
 park_coords <- read_excel(
-  "../data/park_multi_access_info_2024.xlsx",
+  "data/park_multi_access_info_2024.xlsx",
   "Park Locations"
 )
 
@@ -39,7 +39,7 @@ map <- add_points(
 
 map
 
-save_map(map, "../output/figures/park_spheres.png")
+save_map(map, "output/figures/park_spheres.png")
 ############################################################################
 #      Estimate percentage LSOA coverage from each park  (Example)         #
 ############################################################################
@@ -78,7 +78,7 @@ print(park_info)
 ############################################################################
 #             Estimate all park local population demographics              #
 ############################################################################
-source("functions.R")
+
 # Restrict to parks with valid postcodes
 valid_park_coords <- park_coords %>%
   filter(
@@ -120,7 +120,7 @@ all_park_info <- rbind(
 head(all_park_info)
 
 # Save output
-write_xlsx(all_park_info, "../output/park_demographics.xlsx")
+write_xlsx(all_park_info, "output/park_demographics.xlsx")
 
 ############################################################################
 #                          Basic Visualisations                            #
@@ -142,7 +142,7 @@ dist_distrib <- ggplot(all_park_info,
     expand = c(0, 0)
   )
 dist_distrib
-ggsave("../output/figures/pop_dist.png", plot = dist_distrib,
+ggsave("output/figures/pop_dist.png", plot = dist_distrib,
        width = 5, height = 3, dpi = 300)
 
 # IMD distribution
@@ -168,5 +168,5 @@ IMD_dist_plt <- ggplot(all_park_info,
     expand = c(0, 0)
   )
 IMD_dist_plt
-ggsave("../output/figures/imd_dist.png", plot = IMD_dist_plt,
+ggsave("output/figures/imd_dist.png", plot = IMD_dist_plt,
        width = 5, height = 3, dpi = 300)
