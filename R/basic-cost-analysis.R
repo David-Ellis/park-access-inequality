@@ -35,6 +35,7 @@ ft_data <- read_excel(
     Type = "Fly Tipping"
   )
 
+# Combine maintenance and fly tipping data to plot together
 comb_work_data <- rbind(maint_data, ft_data)
 
 ggplot(comb_work_data, aes(x = YearStart, y = Cost/1e6, color = Type)) +
@@ -42,12 +43,14 @@ ggplot(comb_work_data, aes(x = YearStart, y = Cost/1e6, color = Type)) +
   geom_point() +
   theme_bw() +
   ylim(0, 10) +
+  # Update x and y labels
   labs(
     y = "Yearly Cost (Millions)",
     x = "Financial Year"
     ) +
+  # Update x tick labels
   scale_x_continuous(
     breaks = seq(2013, 2023, 2), 
     labels = paste(seq(13, 23, 2), seq(14, 24, 2), sep = "/")
-      )
+    )
 

@@ -9,8 +9,8 @@ park_coords <- read_excel(
   "Park Locations"
 )
 
-# Assuming walking speed of 5 km/hr
-dist_10_min_walk_km = 10 * 5 / 60
+# Using 1km reference distance
+distance = 1
 
 # Example park index
 example_index = 2
@@ -26,7 +26,7 @@ map <- plot_empty_map(
 map <- add_radii(
   map,
   park_coords,
-  radii = dist_10_min_walk_km,
+  radii = distance,
   alpha = 0.1,
   color = "darkgreen"
 )
@@ -50,7 +50,7 @@ save_map(map, "output/figures/park_spheres.png")
 LSOA_coverage <- get_LSOA_coverage(
   park_coords,
   "Sutton Park",
-  dist_m = dist_10_min_walk_km*1000
+  dist_m = distance*1000
 )
 
 # Plot postcode coverage percentage
@@ -71,7 +71,7 @@ map
 park_info <- get_park_info(
   park_coords,
   park_name = "Sutton Park",
-  dist_10_min_walk_km*1000)
+  distance*1000)
 
 print(park_info)
 
@@ -87,14 +87,14 @@ valid_park_coords <- park_coords %>%
 
 valid_park_info <- get_all_park_info(
   valid_park_coords,
-  dist_10_min_walk_km*1000
+  distance*1000
   )
 
 
 get_park_info(
   valid_park_coords,
   "Rectory Park",
-  dist_10_min_walk_km*1000
+  distance*1000
 )
 # Create NA dataframe for parks with invalid postcodes
 invalid_park_info <- park_coords %>%
@@ -119,6 +119,24 @@ all_park_info <- rbind(
 
 head(all_park_info)
 
+# Add Old_Site_Ref back in
+all_park_info <- all_park_info %>%
+  left_join(
+    read_excel(
+      "data/park_multi_access_info_2024.xlsx",
+      "Park Info"
+    ) %>%
+      select(Site_Name, Old_Site_Ref),
+    by = join_by("Site_Name")
+  ) %>%
+  select(
+    Site_Name, Old_Site_Ref, everything()
+  )
+  
+  
+  
+
+
 # Save output
 write_xlsx(all_park_info, "output/park_demographics.xlsx")
 
@@ -134,7 +152,7 @@ dist_distrib <- ggplot(all_park_info,
   geom_histogram(bins = 30, fill = "#1f77b4") +
   labs(
     y = "Number of Parks",
-    x = "Estimated Population in 10-Minute Walking Distance"
+    x = "Estimated Population within 1km"
   ) +
   theme_bw() +
   scale_y_continuous(
