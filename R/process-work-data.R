@@ -5,6 +5,7 @@ library(dplyr)
 
 # Get data lists for fly tipping
 flytip_files <- list.files(pattern = "FLY TIP AWO TOTALS INC OLDSITEREF.*.xlsx", recursive = TRUE)
+
 # Get data lists for maintenance
 maintenance_files <- list.files(pattern = "BoQ.*.xlsx", recursive = TRUE)
 
@@ -118,7 +119,7 @@ maintenance_data <- rbindlist(maint_list) %>%
   ) %>%
   summarise(
     Cost = sum(Cost)
-  )%>%
+  ) %>%
   # Filter data to only include data in the 2023 White Book 
   filter(
     Old_Site_Ref %in% parks$Old_Site_Ref
