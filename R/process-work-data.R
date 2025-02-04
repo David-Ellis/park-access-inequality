@@ -99,12 +99,14 @@ for (maint_i in maintenance_files) {
       # Convert any cost data stored as characters to numeric
       Cost = as.numeric(`TOTAL COST INC ON COST`),
       # Update Old site ref column title
-      Old_Site_Ref  = `OLD SITE REF`
+      Old_Site_Ref  = `OLD SITE REF`,
+      # Is it a play park
+      Play_Park = grepl("play", tolower(`WORK SCHD DESCR`))
     ) %>%
     # Select only needed columns
     # (Not keeping name in case different names are used for the same site)
     select(
-      Old_Site_Ref, Year, YearStart, Cost
+      Old_Site_Ref, Year, YearStart, Cost, Play_Park
     )
   
   # Store this data frame in a list to combine later
@@ -118,7 +120,8 @@ maintenance_data <- rbindlist(maint_list) %>%
     Old_Site_Ref, Year, YearStart
   ) %>%
   summarise(
-    Cost = sum(Cost)
+    Cost = sum(Cost),
+    Play_Park = any(Play_Park)
   ) %>%
   # Filter data to only include data in the 2023 White Book 
   filter(
@@ -127,3 +130,5 @@ maintenance_data <- rbindlist(maint_list) %>%
 
 # Save maintenance data to an excel file
 write_xlsx(maintenance_data, "data/park-work-records/maintenance-all-years.xlsx")
+
+
