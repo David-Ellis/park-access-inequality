@@ -62,6 +62,72 @@ ggplot(work_totals, aes(x = YearStart, y = Cost/1e6, color = Type)) +
     )
 
 ##############################################################
+#               Plot yearly totals for each IMD              #
+##############################################################
+
+IMD_spend_change <- comb_work_data %>%
+  left_join(
+    park_demog,
+    by = join_by("Old_Site_Ref")
+  ) %>%
+  group_by(
+    Year, YearStart, IMD_quintile 
+  ) %>% 
+  summarise(
+    Cost = sum(Cost),
+    Total_Population = sum(Total_Population)
+  ) %>%
+  filter(
+    !is.na(IMD_quintile)
+  )%>%
+  mutate(
+    IMD_quintile = as.factor(IMD_quintile),
+    Cost_per_person = Cost / Total_Population
+  ) 
+
+# Plot yearly absolute cost per person
+ggplot(IMD_spend_change, aes(x = YearStart, y = Cost/1e6, color = IMD_quintile)) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.5) +
+  theme_bw() +
+  ylim(0, 5) +
+  # Update x and y labels
+  labs(
+    y = "Yearly Cost (Million £)",
+    x = "Financial Year",
+    color = "IMD Quintile"
+  ) +
+  # Update x tick labels
+  scale_x_continuous(
+    breaks = seq(2013, 2023, 2), 
+    labels = paste(seq(13, 23, 2), seq(14, 24, 2), sep = "/")
+  ) +
+  # Change colour scale to be perceptually uniform (accessibility)
+  viridis::scale_color_viridis(discrete = TRUE, option = "D", 
+                               begin = 0, end = 0.9)
+ggsave("output/figures/imd-cost-change.png", width = 5, height = 3)
+
+# Plot yearly absolute cost per person
+ggplot(IMD_spend_change, aes(x = YearStart, y = Cost_per_person, color = IMD_quintile)) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.5) +
+  theme_bw() +
+  # Update x and y labels
+  labs(
+    y = "Yearly Cost (£) per person within 1km",
+    x = "Financial Year",
+    color = "IMD Quintile"
+  ) +
+  # Update x tick labels
+  scale_x_continuous(
+    breaks = seq(2013, 2023, 2), 
+    labels = paste(seq(13, 23, 2), seq(14, 24, 2), sep = "/")
+  ) +
+  # Change colour scale to be perceptually uniform (accessibility)
+  viridis::scale_color_viridis(discrete = TRUE, option = "D", 
+                              begin = 0, end = 0.9)
+ggsave("output/figures/imd-cost-change_pp.png", width = 5, height = 3)
+##############################################################
 #                  Plot total cost vs IMD                    #
 ##############################################################
 
