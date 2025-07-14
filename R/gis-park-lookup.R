@@ -71,6 +71,8 @@ gis_data <- rbindlist(gis_data_list) %>%
     # Fix Canon Hill Popi
     POPI_UID = case_when(
       Site_Name_GIS == "Cannon Hill Park And Queens Drive" ~ "SI/001004676",
+      Site_Name_GIS == "The Dell" ~ "SI/001002830",
+      Site_Name_GIS == "The Dell" & GIS_Other_Name == "Bells Farm Pos" ~ "SI/001002830",
       TRUE ~ POPI_UID
     ),
     # Fix some site names
@@ -83,7 +85,8 @@ gis_data <- rbindlist(gis_data_list) %>%
   ) %>%
   # Get rid of doubles
   filter(
-    !(Site_Name_GIS %in% remove_names)
+    !(Site_Name_GIS %in% remove_names),
+    Site_Name_GIS != "The Dell" & GIS_Other_Name != "The Shire Country Park"
   )
 
 double_popi_ids <- gis_data %>% 
@@ -185,7 +188,7 @@ joined_by_name <- park_info %>%
   group_by(Join_Name_Park) %>%
   slice_min(order_by=dist, n=1) %>%
   filter(
-    !(Old_Site_Ref %in% joined_by_popi)
+    !(POPI_UID %in% joined_by_popi$POPI_UID)
   ) %>%
   ungroup() %>% 
   mutate(
@@ -223,7 +226,7 @@ joined_by_other <- park_info %>%
   group_by(Join_Name_Park) %>%
   slice_min(order_by=dist, n=1) %>%
   filter(
-    !(Old_Site_Ref %in% joined_by_popi)
+    !(POPI_UID %in% lookup1$POPI_UID)
   ) %>%
   ungroup() %>% 
   mutate(
