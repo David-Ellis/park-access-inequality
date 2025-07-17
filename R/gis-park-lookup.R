@@ -29,7 +29,8 @@ remove_names <- c(
   "Sunset Park",
   "Sutton Town Hall Gardens",
   "Park Approach",
-  "Holders Lane Playing Fields"
+  "Holders Lane Playing Fields",
+  "Callowbrook Recreation Ground"
 )
 
 gis_data_list <- list()
@@ -147,6 +148,8 @@ park_info <- read_excel(
     by = join_by("Postcode")
   )
 
+print("Loaded park data.")
+
 ################################################################################
 #                             Join by POPI                                     #
 ################################################################################
@@ -159,6 +162,8 @@ joined_by_popi <- gis_data %>%
   mutate(
     matched_on = "Popi ID"
   )
+
+print("Joined by POPI.")
 
 ################################################################################
 #                             Join by Name                                     #
@@ -185,7 +190,7 @@ joined_by_name <- park_info %>%
     method = "jw", #use jw distance metric
     max_dist=0.2, 
     distance_col='dist') %>%
-  group_by(Join_Name_Park) %>%
+  group_by(POPI_UID) %>%
   slice_min(order_by=dist, n=1) %>%
   filter(
     !(POPI_UID %in% joined_by_popi$POPI_UID)
@@ -198,6 +203,7 @@ joined_by_name <- park_info %>%
 
 lookup1 <- rbind(joined_by_popi, joined_by_name)
 
+print("Joined by Name.")
 ################################################################################
 #                           Join by other name                                 #
 ################################################################################
@@ -232,10 +238,14 @@ joined_by_other <- park_info %>%
   mutate(
     matched_on = "Fuzzy name"
   ) %>%
-  select(colnames(joined_by_popi)) 
+  select(colnames(joined_by_popi))  %>%
+  filter(
+    !(POPI_UID == "SI/001003262" & Old_Site_Ref == "1591POB")
+  )
 
 lookup2 <- rbind(lookup1, joined_by_other)
 
+print("Joined by Other Name.")
 ################################################################################
 #                              Check join                                      #
 ################################################################################
@@ -317,7 +327,10 @@ nearest_to_missing <- still_missing %>%
   left_join(closest_parks_to_missing, by = "POPI_UID")
 
 
-## Too far ## 
+################################################################################
+#                  Find nearest parks too far from their match                 #
+################################################################################
+
 
 too_far_cross <- tidyr::crossing(
   POPI_UID = too_far$POPI_UID,
@@ -346,7 +359,6 @@ nearest_too_far <- too_far %>%
 ################################################################################
 #                                 Save output                                  #
 ################################################################################
-
 
 output <- list(
   "Draft lookup" = lookup3,
