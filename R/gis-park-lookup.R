@@ -30,7 +30,10 @@ remove_names <- c(
   "Sutton Town Hall Gardens",
   "Park Approach",
   "Holders Lane Playing Fields",
-  "Callowbrook Recreation Ground"
+  "Callowbrook Recreation Ground",
+  "Vesey Memorial Gardens", # Not a Park
+  "Egghill Park", # Not in 376
+  "Rubery Cutting" # Looks like small patch of grass
 )
 
 gis_data_list <- list()
@@ -81,6 +84,9 @@ gis_data <- rbindlist(gis_data_list) %>%
       Site_Name_GIS == "Walkers Heath Playing Fields" ~ "Walkers Heath Sports Centre",
       Site_Name_GIS == "Cannon Hill Park And Queens Drive" ~ "Cannon Hill Park",
       Site_Name_GIS == "Queen Mother Plantation" ~ "Moor Green Sports Ground",
+      Site_Name_GIS == "Formans Road Nature Area Shire Country Park" ~ "Burbury Brickworks River Walk",
+      Site_Name_GIS == "Hay Barn Recreation Ground" ~ "Berkeley Rd Recreation Ground",
+      Site_Name_GIS == "Farnborough Road Playing Fields" ~ "Castle Vale Playing Field",
       TRUE ~ Site_Name_GIS
     )
   ) %>%
@@ -303,28 +309,30 @@ park_coords <- park_info %>%
     Old_Site_Ref, Nearest_Park, Park_Postcode, Park_Lat, Park_Long
   )
 
-missing_cross <- tidyr::crossing(
-  POPI_UID = still_missing$POPI_UID,
-  Old_Site_Ref = park_coords$Old_Site_Ref
-) %>%
-  left_join(still_missing, by = "POPI_UID") %>%
-  bind_cols(park_coords[rep(1:nrow(park_coords), times = nrow(still_missing)), ])
-
-missing_cross <- missing_cross %>%
-  mutate(distance_m = distHaversine(
-    cbind(GIS_Long, GIS_Lat),
-    cbind(Park_Long, Park_Lat)
-  ))
-
-# For each park in still_missing, find the closest park_coords park
-closest_parks_to_missing <- missing_cross %>%
-  group_by(POPI_UID) %>%
-  slice_min(distance_m, n = 1) %>%
-  ungroup()
-
-# If you want to merge back into still_missing:
-nearest_to_missing <- still_missing %>%
-  left_join(closest_parks_to_missing, by = "POPI_UID")
+if (nrow(still_missing) > 0) {
+  
+  missing_cross <- tidyr::crossing(
+    POPI_UID = still_missing$POPI_UID,
+    Old_Site_Ref = park_coords$Old_Site_Ref
+  ) %>%
+    left_join(still_missing, by = "POPI_UID") %>%
+    bind_cols(park_coords[rep(1:nrow(park_coords), times = nrow(still_missing)), ])
+  
+  missing_cross <- missing_cross %>%
+    mutate(distance_m = distHaversine(
+      cbind(GIS_Long, GIS_Lat),
+      cbind(Park_Long, Park_Lat)
+    ))
+  
+  # For each park in still_missing, find the closest park_coords park
+  closest_parks_to_missing <- missing_cross %>%
+    group_by(POPI_UID) %>%
+    slice_min(distance_m, n = 1) %>%
+    ungroup()
+} else {
+  # Return empty data frame since none are missing
+  closest_parks_to_missing <- data.frame()
+}
 
 
 ################################################################################
@@ -362,8 +370,8 @@ nearest_too_far <- too_far %>%
 
 output <- list(
   "Draft lookup" = lookup3,
-  "GIS still missing" = nearest_to_missing,
-  "Maybe too far" = too_far
+  "GIS still missing" = closest_parks_to_missing,
+  "Maybe too far" = nearest_too_far
 )
 
-writexl::write_xlsx(output, "data/gis-park-lookup-v2.xlsx")
+writexl::write_xlsx(output, "data/gis-park-lookup-v4.xlsx")
