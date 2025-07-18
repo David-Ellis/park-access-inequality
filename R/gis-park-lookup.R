@@ -527,3 +527,27 @@ output <- list(
 )
 
 writexl::write_xlsx(output, "data/gis-park-lookup-v6.xlsx")
+
+################################################################################
+#                      Create and save final lookup                            #
+################################################################################
+
+final_lookup <- lookup4 %>%
+  select(Site_Name_GIS, POPI_UID, Site_Name_Parks, Old_Site_Ref) %>%
+  left_join(
+    park_info %>% 
+      select(Old_Site_Ref, Popi_Site_Ref),
+    by = join_by("Old_Site_Ref")
+  ) %>%
+    rename(
+      Name_GIS = Site_Name_GIS,
+      POPI_GIS = POPI_UID,
+      Name_Park = Site_Name_Parks,
+      POPI_Park = Popi_Site_Ref
+    ) %>%
+  select(Name_GIS, POPI_GIS, Name_Park, POPI_Park, Old_Site_Ref) %>%
+  mutate(
+    Matching_POPI = POPI_GIS == POPI_Park
+  )
+
+writexl::write_xlsx(final_lookup, "data/gis-park-lookup.xlsx")
