@@ -8,6 +8,72 @@ library(fuzzyjoin)
 library(geosphere)
 
 ################################################################################
+#                           Manual lookup list                                 #
+################################################################################
+	
+
+# Site name not strictly needed, but makes the data frame more human-readable
+manual_lookup <- data.frame(
+  Site_Name_GIS = c(
+    "Glebe Farm Recreation Ground",
+    "Hill Hook Local Nature Reserve",
+    "Sheldon Country Park",
+    "Shard End Public Open Space",
+    "Weoley Castle Walkway",
+    "Perry Park And Alexander Stadium",
+    "Hollymoor Park",
+    "Cocks Moors Woods Open Space",
+    "Rea Road Open Space River Rea Walkway",
+    "Sommerfield Road Open Space",
+    "Hill Hook Adjacent Woodland",
+    "Rover Park",
+    "New Hall Valley Country Park",
+    "Highcroft Park",
+    "Monyhull Village Green"
+    
+    ),
+  POPI_UID = c(
+    "SI/001002374", 
+    "SI/001003517", # Park Popi is SI/001003516 so just 1 off
+    "SI/001000869", # Park Popi is SI/001000859 (one digit different)
+    "no-popi-18",
+    "no-popi-20",
+    "SI/001001136",
+    "SI/001001308", # Park popi is SI/001001301
+    "SI/001002900", # Park popi is SI/001002884
+    "no-popi-13",
+    "no-popi-19",   # Park popi is SI/001000066
+    "no-popi-9",    # Park popi is SI/001003516
+    "SI/001001302", # Park popi is SI/001006045
+    "SI/001003989", # Park popi is SI/001003860
+    "SI/001004210", # Park popi is SI/001004782
+    "no-popi-26"    # Park popi is SI/001002830
+    ),
+  Old_Site_Ref = c(
+    "1488POA", 
+    "1000POB", # Hill Hook Nature Reserve
+    "1584CPA", 
+    "1587POA", # Gressel Lane Recreation Ground
+    "0282POA", # Castle Walkway
+    "0994POB", # Perry Park
+    "0078PKA", # Birmingham Great Park
+    "0879POA",
+    "0178POC", # Rea Road Public Open Space
+    "0083CPA", # Woodgate Valley Country Park
+    "1000POB", # Hill Hook Nature Reserve
+    "0078POA", # Rover Park (But same postcode as Long Saw Drive Pos)
+    "1394CPA",
+    "0991POA", # Highcroft Public Open Space
+    "0779POA"  # The Dell P.o.s
+    )
+
+  
+  
+  
+  
+)
+
+################################################################################
 #                      Load GIS Park Info (From Stephen)                       #
 ################################################################################
 
@@ -24,6 +90,7 @@ remove_names <- c(
   "Wake Green Public Playing Fields",
   "Hazelwell Road Open Space River Rea Walkway",
   "River Rea Walkway Cartland Road To Hazelwell Road",
+  # ^ These two share a popi ID with ANOTHER shape file so have to be removed
   "Dads Lane Recreation Ground",
   "Walkers Heath Recreation Ground",
   "Sunset Park",
@@ -33,7 +100,44 @@ remove_names <- c(
   "Callowbrook Recreation Ground",
   "Vesey Memorial Gardens", # Not a Park
   "Egghill Park", # Not in 376
-  "Rubery Cutting" # Looks like small patch of grass
+  "Rubery Cutting", # Looks like small patch of grass
+  "Corisande Walkway", # Looks like a random alleyway
+  "Hope Gardens", # Doesn't appear to be a BCC park
+  "Woodgate Valley Country Park Lye Close Lane-Kitwell Lane",
+  # Can't tell if it's a park, but it doesn't connect to Woodgate Vally CP
+  "St Thomas Closed Burial Ground", # graveyard
+  "St Pauls Closed Burial Ground", # graveyard
+  "Long Nuke Road Sports Ground", # Looks fenced up on Google Maps
+  "Blakesley Sports Ground", # Possible private sports ground
+  "Hilltop And Manwood Public Open Space", # Coords look like private golf course
+  "Laurel Road Sports Ground", # private sports ground
+  "The Fields Millennium Village Green", # Doesn't seem to be in park data
+  "Lifford Lane Woodland", # Not accessible to public
+  "Moseley Village Green", # Patch of grass
+  "Highfield Hall Playing Fields", # Connected to community centre - not BCC park
+  "Masefield Hall And Square", # Not a park
+  "Lifford Reservoir", # Not in White Book
+  "Oakwood Road Coppice", # Small wooded area - not park
+  "Maney Hill Gardens", # Nice patch of grass - not a park
+  "Erdington Playing Fields", # Not in 376
+  "Five Ways Gardens", # Not a park
+  "Hilltop And Manwood Sports Pitch", # Someone's mowing the grass - apparently not us
+  "Priory Fields", # Nature reserve
+  "Reaside Crescent East", # Small patch of grass
+  "Monyhull Grange POS", # Not in 376
+  "Oaklands Sports And Social Club", # Looks privately managed
+  "Park Way Sports Pitch", # Private artificial turf pitch
+  "Bromwich Wood", # Not a maintained park
+  #"Mill Lane Open Space River Rea Walkway", # Doesn't appear to be a park
+  "Bell Lane Recreation Ground", # Parkish looking grass but not in White Book
+  "Brandwood Pocket Park And Pool", # Shares name with "Brandwood Pocket Park"
+  # But looks like nature reserve/pond 
+  "Ley Hill Road Coppice", # Wooded area
+  "Centre Park", # Not in 376
+  "Woodgate Valley Country Park Stanmore Grove", # Walkway - not a park
+  "Ormond Road Public Open Space", # In Rubery not Birmingham
+  "Birmingham Great Park Reservoir", # Doesn't seem to be connected to a park
+  "River Rea Walkway Frankley" # Center of the shape file is in someones garden?
 )
 
 gis_data_list <- list()
@@ -67,6 +171,7 @@ for (sheet_i in gis_sheets) {
 gis_data <- rbindlist(gis_data_list) %>%
   # Impute missing popi IDs
   mutate(
+    # Add no-popi ID BEFORE filtering (so they don't change)
     POPI_UID = if_else(
       is.na(POPI_UID),
       paste0("no-popi-", cumsum(is.na(POPI_UID))),
@@ -87,13 +192,15 @@ gis_data <- rbindlist(gis_data_list) %>%
       Site_Name_GIS == "Formans Road Nature Area Shire Country Park" ~ "Burbury Brickworks River Walk",
       Site_Name_GIS == "Hay Barn Recreation Ground" ~ "Berkeley Rd Recreation Ground",
       Site_Name_GIS == "Farnborough Road Playing Fields" ~ "Castle Vale Playing Field",
+      Site_Name_GIS == "Selcroft Avenue Park" ~ "West Boulevard/Selcroft P.o.s.",
       TRUE ~ Site_Name_GIS
     )
   ) %>%
   # Get rid of doubles
   filter(
-    !(Site_Name_GIS %in% remove_names),
-    Site_Name_GIS != "The Dell" & GIS_Other_Name != "The Shire Country Park"
+    !(Site_Name_GIS %in% remove_names) & 
+      !(Site_Name_GIS == "The Dell" & 
+      GIS_Other_Name == "The Shire Country Park")
   )
 
 double_popi_ids <- gis_data %>% 
@@ -161,6 +268,10 @@ print("Loaded park data.")
 ################################################################################
 
 joined_by_popi <- gis_data %>%
+  # Don't join GIS parks in the manual lookup
+  filter(
+    !(POPI_UID %in% manual_lookup$POPI_UID)
+  ) %>%
   inner_join(
     park_info,
     by = join_by(POPI_UID == Popi_Site_Ref)
@@ -185,6 +296,10 @@ joined_by_name <- park_info %>%
   ) %>%
   stringdist_join(
     gis_data %>% 
+      # Don't join GIS parks in the manual lookup
+      filter(
+        !(POPI_UID %in% manual_lookup$POPI_UID)
+      ) %>%
       mutate(
         Join_Name_GIS = str_remove(
           Site_Name_GIS, 
@@ -223,7 +338,11 @@ joined_by_other <- park_info %>%
     )
   ) %>%
   stringdist_join(
-    gis_data %>% 
+    gis_data %>%       
+      # Don't join GIS parks in the manual lookup
+      filter(
+        !(POPI_UID %in% manual_lookup$POPI_UID)
+      ) %>%
       mutate(
         Join_Name_GIS = str_remove(
           GIS_Other_Name, 
@@ -252,13 +371,38 @@ joined_by_other <- park_info %>%
 lookup2 <- rbind(lookup1, joined_by_other)
 
 print("Joined by Other Name.")
+
+################################################################################
+#                         Join from manual list                                #
+################################################################################
+
+manual_lookup_joined <- manual_lookup %>%
+  left_join(
+    gis_data %>% select(-c(Site_Name_GIS)),
+    by = join_by(POPI_UID)
+    ) %>%
+  left_join(
+    park_info,
+    by = join_by(Old_Site_Ref)
+  ) %>%
+  mutate(
+    matched_on = "Manual"
+  ) %>%
+  select(
+    colnames(lookup2)
+  )
+
+print("Joined from manual list.")
+
+lookup3 <- rbind(lookup2, manual_lookup_joined)
+
 ################################################################################
 #                              Check join                                      #
 ################################################################################
 
-matched_osfs <- unique(lookup2$Old_Site_Ref)
+matched_osfs <- unique(lookup3$Old_Site_Ref)
 
-matched_popis <- unique(lookup2$POPI_UID)
+matched_popis <- unique(lookup3$POPI_UID)
 
 print(
   paste(
@@ -272,30 +416,37 @@ print(
   )
 )
 
+################################################################################
+#                          Calculate Distances                                 #
+################################################################################
 
 
-lookup2$distance_m <- distHaversine(
-  p1 = cbind(lookup2$GIS_Long, lookup2$GIS_Lat),
-  p2 = cbind(lookup2$Park_Long, lookup2$Park_Lat)
+lookup3$distance_m <- distHaversine(
+  p1 = cbind(lookup3$GIS_Long, lookup3$GIS_Lat),
+  p2 = cbind(lookup3$Park_Long, lookup3$Park_Lat)
 )
 
-lookup3 <- lookup2 %>%
+lookup4 <- lookup3 %>%
   mutate(
     `dist:radius ratio` = distance_m / (Square_Meters/pi)**(1/2)
   )
 
 # Get GIS parks still not matched
 still_missing <- gis_data %>%
-  filter(!(POPI_UID %in% lookup2$POPI_UID))
+  filter(!(POPI_UID %in% lookup3$POPI_UID))
 
 # Extract parks that are maybe too far away
 
-too_far <- lookup3 %>%
-  filter(`dist:radius ratio` > 2) %>%
-  select(colnames(still_missing))
-
-lookup_withdist <- lookup3 %>%
-  filter(`dist:radius ratio` <= 2) 
+too_far <- lookup4 %>%
+  filter(
+    # Only include parks that are too far apart
+    `dist:radius ratio` > 2,
+    # Remove parks with the same names
+    Site_Name_GIS != Site_Name_Parks
+    ) %>%
+  rename(Matched_Park = Site_Name_Parks) %>%
+  select("POPI_UID", "Site_Name_GIS", "GIS_Other_Name","GIS_Lat", "GIS_Long", 
+         "Matched_Park", "distance_m","dist:radius ratio")
 
 ################################################################################
 #         Find nearest park for each missing and too far GIS object            #
@@ -357,21 +508,22 @@ too_far_cross <- too_far_cross %>%
 closest_parks_too_far <- too_far_cross %>%
   group_by(POPI_UID) %>%
   slice_min(distance_m, n = 1) %>%
-  ungroup()
+  ungroup() %>%
+  rename(Nearest_Park_Postcode = Park_Postcode) %>%
+  select(POPI_UID, Nearest_Park, Nearest_Park_Postcode)
 
 # If you want to merge back into still_missing:
 nearest_too_far <- too_far %>%
   left_join(closest_parks_too_far, by = "POPI_UID")
 
-
 ################################################################################
-#                                 Save output                                  #
+#                              Save output                                     #
 ################################################################################
 
 output <- list(
-  "Draft lookup" = lookup3,
+  "Draft lookup" = lookup4,
   "GIS still missing" = closest_parks_to_missing,
   "Maybe too far" = nearest_too_far
 )
 
-writexl::write_xlsx(output, "data/gis-park-lookup-v4.xlsx")
+writexl::write_xlsx(output, "data/gis-park-lookup-v6.xlsx")
