@@ -66,10 +66,6 @@ manual_lookup <- data.frame(
     "0991POA", # Highcroft Public Open Space
     "0779POA"  # The Dell P.o.s
     )
-
-  
-  
-  
   
 )
 
@@ -534,6 +530,21 @@ writexl::write_xlsx(output, "data/gis-park-lookup-v6.xlsx")
 
 final_lookup <- lookup4 %>%
   select(Site_Name_GIS, POPI_UID, Site_Name_Parks, Old_Site_Ref) %>%
+  # Add back in the Rea Vally shape files that were deleted
+  rbind(
+    rbindlist(gis_data_list) %>% 
+      filter(
+        Site_Name_GIS %in% c(
+          "Hazelwell Road Open Space River Rea Walkway",
+          "River Rea Walkway Cartland Road To Hazelwell Road"
+          )
+      ) %>%
+      mutate(
+        Site_Name_Parks = "Rea Valley (Hazelwell Rec)",
+        Old_Site_Ref = "0581POB"
+      ) %>%
+      select(Site_Name_GIS, POPI_UID, Site_Name_Parks, Old_Site_Ref)
+  ) %>%
   left_join(
     park_info %>% 
       select(Old_Site_Ref, Popi_Site_Ref),
