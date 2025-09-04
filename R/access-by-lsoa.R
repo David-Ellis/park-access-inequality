@@ -5,13 +5,18 @@ library(readxl)
 
 dist_m = 1000
 
-# Load Birmingham LSOAs
-brum_lsoas <- LSOA21@data %>%
+# Load Birmingham postcodes
+brum_postcodes <- read.csv("data/West Midlands postcodes.csv") %>%
   filter(
-    Area == "Birmingham"
+    In.Use. == "Yes",
+    District == "Birmingham"
   ) %>%
+  rename(LSOA21 = LSOA21.Code) %>%
   select(
-    LSOA21, LONG, LAT
+    Postcode,
+    Latitude,
+    Longitude,
+    LSOA21
   ) %>%
   mutate(
     num_parks_1km = NA,
@@ -48,17 +53,20 @@ park_coords <- read_excel(
     Site_Name %in% park_info$Site_Name
   )
 
+################################################################################
+#                     Get park info for each postcode                          #
+################################################################################
 
 # Loop over all LSOAs
-for (i in 1:nrow(brum_lsoas)) {
+for (i in 1:nrow(brum_postcodes)) { 
   # Find all parks within 1km
   parks_i <- purrr::map2_dfr(
-    brum_lsoas$LAT[i],
-    brum_lsoas$LONG[i],
+    brum_postcodes$Latitude[i],
+    brum_postcodes$Longitude[i],
     ~spatialrisk::points_in_circle(park_coords, .y, .x,
                                    lon = Longitude,
                                    lat = Latitude,
-                                   radius = 5000)) %>%
+                                   radius = 4000)) %>%
     group_by(Site_Name) %>%
     summarise(
       distance = min(distance_m)
@@ -78,19 +86,45 @@ for (i in 1:nrow(brum_lsoas)) {
       Square_Meters > 25000
     )
   
-  brum_lsoas$num_parks_1km[i] = nrow(parks_i_1km)
-  brum_lsoas$num_play_areas_1km[i] = sum(parks_i_1km$Play_Park)
-  brum_lsoas$dist_to_nearest_park[i] = min(parks_i$distance)/1000
-  brum_lsoas$dist_to_nearest_big_park[i] = min(parks_i_big$distance)/1000
-  brum_lsoas$total_park_size_1km[i] = sum(parks_i_1km$Square_Meters)/1e6
+  brum_postcodes$num_parks_1km[i] = nrow(parks_i_1km)
+  brum_postcodes$num_play_areas_1km[i] = sum(parks_i_1km$Play_Park)
+  brum_postcodes$dist_to_nearest_park[i] = min(parks_i$distance)/1000
+  brum_postcodes$dist_to_nearest_big_park[i] = min(parks_i_big$distance)/1000
+  brum_postcodes$total_park_size_1km[i] = sum(parks_i_1km$Square_Meters)/1e6
+  
+  if (i %% 1000 == 0) {
+    print(paste(
+      i, "of", nrow(brum_postcodes), "complete"
+    ))
+  }
+  
 }
+
+################################################################################
+#                           Aggregate to LSOA                                  #
+################################################################################
+
+# Average all postcode-level values
+brum_lsoas <- brum_postcodes %>%
+  group_by(LSOA21) %>%
+  summarise(
+    num_parks_1km = mean(num_parks_1km),
+    num_play_areas_1km = mean(num_play_areas_1km),
+    dist_to_nearest_park = mean(dist_to_nearest_park),
+    dist_to_nearest_big_park = mean(dist_to_nearest_big_park),
+    total_park_size_1km = mean(total_park_size_1km),
+  )
+
+################################################################################
+#                                Mapping                                       #
+################################################################################
 
 num_parks <- plot_map(
   brum_lsoas,
   value_header = "num_parks_1km",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = "Number of Parks within 1km",
+  map_title = "Average Number of Parks within 1km",
   style = "cont"
 )
 num_parks
@@ -101,7 +135,7 @@ play_parks <- plot_map(
   value_header = "num_play_areas_1km",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = "Number of Parks with a Play Park within 1km",
+  map_title = "Average Number of Parks with a Play Park within 1km",
   style = "cont"
 ) 
 play_parks
@@ -113,7 +147,7 @@ nearest_park <- plot_map(
   value_header = "dist_to_nearest_park",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = "Distance to Nearest Park (km) - All sizes",
+  map_title = "Average Distance to Nearest Park (km) - All sizes",
   style = "cont"
 ) 
 nearest_park
@@ -124,7 +158,7 @@ nearest_big_park <- plot_map(
   value_header = "dist_to_nearest_big_park",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = "Distance to Nearest Big Park (km) - 25,000 Square Meters or More",
+  map_title = "Average Distance to Nearest Big Park (km) - 25,000 Square Meters or More",
   style = "cont"
 ) 
 nearest_big_park
@@ -137,7 +171,7 @@ total_park_size_1km <- plot_map(
   value_header = "total_park_size_1km",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = "Total Park Space Sccessible within 1km (square meters)",
+  map_title = "Average Combined Park Space Sccessible within 1km (square meters)",
   style = "cont",
   breaks = c(0, 2e5, 4e5, 6e5, 8e5)
 ) 
