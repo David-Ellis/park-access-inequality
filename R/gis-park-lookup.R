@@ -562,3 +562,87 @@ final_lookup <- lookup4 %>%
   )
 
 writexl::write_xlsx(final_lookup, "data/gis-park-lookup.xlsx")
+
+################################################################################
+#                        Checking lookup table                                 #
+################################################################################
+
+perc_match <- 100*mean(park_info$Old_Site_Ref %in% final_lookup$Old_Site_Ref)
+cat(
+  paste0(round(perc_match, 1), "% of 376 parks have gis data.\n")
+)
+
+median_size_all_parks <- median(park_info$Square_Meters)
+median_size_missing_parks <- median(
+  park_info$Square_Meters[!(park_info$Old_Site_Ref %in% final_lookup$Old_Site_Ref)]
+)
+
+cat(paste0(
+  "The median size of the missing parks is ",
+  median_size_missing_parks,
+  " square metres, compared to the average of ",
+  median_size_all_parks
+  ))
+
+library(ggplot2)
+
+multiple_access_points <- read_excel(
+  "data/park_multi_access_info_2024.xlsx",
+  sheet = "Park Locations"
+) %>%
+  count(`Site_Name`) %>%
+  inner_join(
+    read_excel(
+      "data/park_multi_access_info_2024.xlsx",
+      sheet = "Park Info"
+    ) %>%
+      select(c("Site_Name", "Old_Site_Ref")),
+    by = join_by("Site_Name")
+  ) %>%
+  mutate(
+    multple_access = n > 1
+  )
+
+park_sizes <- park_info %>%
+  mutate(
+    gis_data = case_when(
+      Old_Site_Ref %in% final_lookup$Old_Site_Ref ~ "Has GIS Data",
+      TRUE ~ "No GIS Data"
+    )
+  ) %>%
+  left_join(
+    read_excel(
+      "data/376parks_regression1_Change_cost.xlsx"
+    ) %>%
+      select(Old_Site_Ref, park_perc,	Play_Park2),
+    by = join_by("Old_Site_Ref")
+    ) %>%
+  left_join(
+    multiple_access_points,
+    by = join_by("Old_Site_Ref")
+  )
+
+ggplot(park_sizes, aes(x = Square_Meters, fill = Play_Park2)) +
+  geom_histogram() +
+  theme_bw() +
+  facet_wrap(~gis_data, ncol = 1, scale = "free_y") +
+  xlim(0, 5e5)
+
+missing_multi_access <- park_sizes %>%
+  group_by(gis_data) %>%
+  summarise(
+    multi_access_count = sum(multple_access),
+    multi_access_perc = round(100*mean(multple_access),1)
+  )
+
+ggplot(park_sizes, aes(x = Square_Meters, fill = multple_access)) +
+  geom_histogram() +
+  theme_bw() +
+  facet_wrap(~gis_data, ncol = 1, scale = "free_y") +
+  xlim(0, 5e5)
+
+multiple_access_missing_gis <- park_sizes %>%
+  filter(
+    multple_access,
+    gis_data == "No GIS Data"
+  )
