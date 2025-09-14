@@ -2,6 +2,7 @@
 library(BSol.mapR)
 library(dplyr)
 library(readxl)
+library(ggplot2)
 
 lsoa_access_path <- "output/data/park-access-by-lsoa.xlsx"
 
@@ -69,7 +70,7 @@ if (!file.exists(lsoa_access_path)) {
       ~spatialrisk::points_in_circle(park_coords, .y, .x,
                                      lon = Longitude,
                                      lat = Latitude,
-                                     radius = 4000)) %>%
+                                     radius = 10000)) %>%
       group_by(Site_Name) %>%
       summarise(
         distance = min(distance_m)
@@ -86,7 +87,7 @@ if (!file.exists(lsoa_access_path)) {
     
     parks_i_big <- parks_i %>%
       filter(
-        Square_Meters > 25000
+        Square_Meters > 100000
       )
     
     brum_postcodes$num_parks_1km[i] = nrow(parks_i_1km)
@@ -146,7 +147,7 @@ play_parks <- plot_map(
   area_name = "Birmingham",
   map_title = "Average Number of Parks with a Play Park within 1km",
   style = "cont"
-) 
+)
 play_parks
 save_map(play_parks, "output/park-access/num_play_parks_1km.png")
 
@@ -158,7 +159,7 @@ nearest_park <- plot_map(
   area_name = "Birmingham",
   map_title = "Average Distance to Nearest Park (km) - All sizes",
   style = "cont"
-) 
+)
 nearest_park
 save_map(nearest_park, "output/park-access/nearest_park.png")
 
@@ -167,9 +168,9 @@ nearest_big_park <- plot_map(
   value_header = "dist_to_nearest_big_park",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = "Average Distance to Nearest Big Park (km) - 25,000 Square Meters or More",
+  map_title = "Average Distance to Nearest Big Park (km) - 10 hectares or More",
   style = "cont"
-) 
+)
 nearest_big_park
 save_map(nearest_big_park, "output/park-access/nearest_big_park.png")
 
@@ -180,15 +181,140 @@ total_park_size_1km <- plot_map(
   value_header = "total_park_size_1km",
   map_type = "LSOA21",
   area_name = "Birmingham",
-  map_title = "Average Combined Park Space Sccessible within 1km (square meters)",
+  map_title = "Average Combined Park Space Accessible within 1km (square meters)",
   style = "cont",
   breaks = c(0, 2e5, 4e5, 6e5, 8e5)
-) 
+)
 total_park_size_1km
 save_map(total_park_size_1km, "output/park-access/park_size_1km.png")
-
 
 
 ################################################################################
 #                             Analyse by IMD                                   #
 ################################################################################
+
+brum_lsoas <- brum_lsoas %>%
+  left_join(
+    read_excel("data/demographics/IMD by LSOA 2021.xlsx"),
+    by = join_by("LSOA21")
+  )
+  
+access_by_IMD <- brum_lsoas %>%
+  group_by(
+    IMD_Quintile
+  ) %>%
+  summarize(
+    `Average Number of Parks within 1km` = mean(num_parks_1km),
+    `Average Number of Play Parks within 1km` = mean(num_play_areas_1km),
+    `Average Distance to Nearest Park (km)` = mean(dist_to_nearest_park),
+    `Average Distance to Nearest Big Park (km) (10+ hectares)` = mean(dist_to_nearest_big_park),
+    `Average Combined Park Space Accessible within 1km (million square meters)` = mean(total_park_size_1km)
+  ) %>%
+  tidyr::pivot_longer(
+    !IMD_Quintile,
+    names_to = "Metric",
+    values_to = "Value"
+  )
+
+imd_access_plot <- ggplot(access_by_IMD,
+       aes(
+         x = IMD_Quintile,
+         y = Value
+         )
+       ) +
+  geom_col(fill = "#006D7D") +
+  theme_bw() +
+  facet_wrap(~Metric, scale = "free_y", ncol = 1) +
+  labs(
+    y = "",
+    x = "IMD Quintile"
+  ) +
+  scale_x_continuous(
+    breaks = c(1,2,3,4,5),
+    labels = c("1\n(Most deprived)", "2", "3", "4", "5\n(Least deprived)")
+  )
+
+imd_access_plot
+
+ggsave(
+  "output/park-access/access_by_IMD.png",
+  plot = imd_access_plot, 
+  width = 5,
+  height = 7
+)
+
+
+################################################################################
+#                          Analyse by ethnicity                                #
+################################################################################
+
+# Calculate global majority % in each LSOA
+brum_gm <- read_excel("data/demographics/brum-eths-lsoa21.xlsx") %>%
+  filter(`Ethnic group` != "Does not apply") %>%
+  mutate(
+    globalMajority = `Ethnic group` != "White"
+  ) %>%
+  group_by(
+    LSOA21
+  ) %>%
+  summarise(
+    global_majority_perc = 100 * sum(globalMajority * Observation)/sum(Observation)
+  )
+
+brum_lsoas <- brum_lsoas %>%
+  left_join(
+    brum_gm,
+    by = join_by("LSOA21")
+  ) %>%
+  mutate(
+    `Global Majority Resident %` = case_when(
+      global_majority_perc < 20 ~ "0-20",
+      global_majority_perc < 40 ~ "20-40",
+      global_majority_perc < 60 ~ "40-60",
+      global_majority_perc < 80 ~ "60-80",
+      global_majority_perc < 100 ~ "80-100",
+      TRUE ~ "Error in percentage labelling"
+    )
+  )
+
+
+access_by_ethnicity <- brum_lsoas %>%
+  group_by(
+    `Global Majority Resident %`
+  ) %>%
+  summarize(
+    `Average Number of Parks within 1km` = mean(num_parks_1km),
+    `Average Number of Play Parks within 1km` = mean(num_play_areas_1km),
+    `Average Distance to Nearest Park (km)` = mean(dist_to_nearest_park),
+    `Average Distance to Nearest Big Park (km) (10+ hectares)` = mean(dist_to_nearest_big_park),
+    `Average Combined Park Space Accessible within 1km (million square meters)` = mean(total_park_size_1km)
+  ) %>%
+  tidyr::pivot_longer(
+    !`Global Majority Resident %`,
+    names_to = "Metric",
+    values_to = "Value"
+  )
+
+
+eth_access_plot <- ggplot(access_by_ethnicity,
+                          aes(
+                            x = `Global Majority Resident %`,
+                            y = Value
+                          )
+) +
+  geom_col(fill = "#006D7D") +
+  theme_bw() +
+  facet_wrap(~Metric, scale = "free_y", ncol = 1) +
+  labs(
+    y = "",
+    x = "Global Majority Resident %"
+  ) 
+
+eth_access_plot
+
+ggsave(
+  "output/park-access/access_by_ethnicity.png",
+  plot = eth_access_plot, 
+  width = 5,
+  height = 7
+)
