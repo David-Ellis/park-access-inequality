@@ -5,14 +5,37 @@
 #     using a fixed radius
 #   3 - crime data for the 19 parks with multiple access points that we create
 #     our own polygons for
-#   4 - Impute zero values? Including for parks that did have GIS data but
-#     no crime reporting from GIS team.
 
 # TODO: Step 2 includes Aston Buffer P.O.S which I couldn't find. This needs to
 #   be checked later.
 
 ################################################################################
-#       1 - Loading and aggregating GIS team's crime data (237 -> 223)         #
+#                            0 - Load Crime Data                               #
+################################################################################
+
+# Get Birmingham LSOAs using BSol.mapR 
+# (https://github.com/Birmingham-and-Solihull-ICS/BSol.mapR)
+Birmingham_LSOAs <- BSol.mapR::LSOA11@data %>%
+  filter(Area == "Birmingham") %>%
+  pull(LSOA11)
+
+crime_data <- read.csv(
+  "data/all-crime-reporting/west-mids-reported-crimes.csv"
+) %>%
+  # Filter for crimes reported in Birmingham
+  filter(
+    LSOA11 %in% Birmingham_LSOAs
+  ) %>%
+  group_by(
+    Year, LSOA11, Longitude, Latitude, CrimeType
+  ) %>%
+  summarise(
+    Crime_Reports = n(),
+    .groups = "drop"
+  )
+
+################################################################################
+#         1 - Load and Aggregate GIS team's Crime dData (237 -> 223)           #
 ################################################################################
 
 gis_park_lookup <- read_excel(
@@ -61,6 +84,9 @@ gis_crime <- read_excel(
   # Count 
   group_by(
     Year, Name_Park, Old_Site_Ref, CrimeType
+  ) %>%
+  rename(
+    Site_Name = Name_Park
   ) %>%
   summarise(
     Crime_Reports = n(),
@@ -116,6 +142,37 @@ small_parks <- park_locs %>%
     !(Old_Site_Ref %in% gis_park_lookup$Old_Site_Ref)
   )
 
+small_park_crime_list <- list()
+
+for (i in 1:nrow(small_parks)) { 
+  crimes_i <- purrr::map2_dfr(
+    small_parks$Latitude[i],
+    small_parks$Longitude[i],
+    ~spatialrisk::points_in_circle(crime_data, .y, .x,
+                                   lon = Longitude,
+                                   lat = Latitude,
+                                   radius = small_parks$Radius_m[i])) %>%
+    group_by(
+      Year, CrimeType
+    ) %>%
+    summarise(
+      Crime_Reports = sum(Crime_Reports),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      Site_Name = small_parks$Site_Name[i],
+      Old_Site_Ref = small_parks$Old_Site_Ref[i]
+    ) %>%
+    select(
+      c(Year, Site_Name, Old_Site_Ref, CrimeType, Crime_Reports)
+    )
+  
+  small_park_crime_list[[i]] <- crimes_i
+}
+
+small_park_crime <- data.table::rbindlist(small_park_crime_list)
+
+
 ################################################################################
 #           3 - Estimating crimes reported multi-access parks (19)             #
 ################################################################################
@@ -123,4 +180,4 @@ small_parks <- park_locs %>%
 
 ################################################################################
 #                            Combine data and save                             #
-################################################################################
+################################################################################ 
