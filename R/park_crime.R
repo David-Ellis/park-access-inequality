@@ -5,6 +5,11 @@
 #     using a fixed radius
 #   3 - crime data for the 19 parks with multiple access points that we create
 #     our own polygons for
+#   4 - Impute zero values? Including for parks that did have GIS data but
+#     no crime reporting from GIS team.
+
+# TODO: Step 2 includes Aston Buffer P.O.S which I couldn't find. This needs to
+#   be checked later.
 
 ################################################################################
 #       1 - Loading and aggregating GIS team's crime data (237 -> 223)         #
@@ -71,6 +76,45 @@ if (any(is.na(gis_crime$Old_Site_Ref))) {
 #         2 - Estimating crimes reported in smaller/simpler parks (134)        #
 ################################################################################
 
+# Load Old_Site_Refs for the 376 parks in the study
+keep_list_376 <- read_excel(
+  "data/376parks_regression1_Change_cost.xlsx"
+) %>%
+  select(Old_Site_Ref) %>%
+  distinct() %>%
+  pull(Old_Site_Ref)
+
+park_locs <- read_excel(
+  "data/park_multi_access_info_2024.xlsx",
+  sheet = "Park Locations"
+)
+
+small_parks <- park_locs %>%
+  # Filter for parks with one one recorded access point
+  count(`Site_Name`) %>%
+  filter(n == 1) %>%
+  # rejoin to self to get coordinates
+  left_join(
+    park_locs, 
+    by = join_by("Site_Name")
+    ) %>%
+  # Join park info to get park size
+  inner_join(
+    read_excel(
+      "data/park_multi_access_info_2024.xlsx",
+      sheet = "Park Info"
+    ) %>%
+      select(c("Site_Name", "Old_Site_Ref", "Square_Meters")),
+    by = join_by("Site_Name")
+  ) %>%
+  # Estimate park radius
+  mutate(
+    Radius_m = sqrt(Square_Meters/pi)
+  ) %>%
+  # Filter for parks with no GIS data
+  filter(
+    !(Old_Site_Ref %in% gis_park_lookup$Old_Site_Ref)
+  )
 
 ################################################################################
 #           3 - Estimating crimes reported multi-access parks (19)             #
