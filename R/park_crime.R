@@ -8,7 +8,9 @@
 
 # TODO: Step 2 includes Aston Buffer P.O.S which I couldn't find. This needs to
 #   be checked later.
-
+library(dplyr)
+library(readxl)
+library(stringr)
 ################################################################################
 #                            0 - Load Crime Data                               #
 ################################################################################
@@ -85,13 +87,13 @@ gis_crime <- read_excel(
   group_by(
     Year, Name_Park, Old_Site_Ref, CrimeType
   ) %>%
-  rename(
-    Site_Name = Name_Park
-  ) %>%
   summarise(
     Crime_Reports = n(),
     .groups = "drop"
-  )
+  ) %>%
+  rename(
+    Site_Name = Name_Park
+  ) 
 
 # Check that all crime reporting data has an Old_Site_Ref. If not, kill code.
 if (any(is.na(gis_crime$Old_Site_Ref))) {
@@ -176,6 +178,25 @@ small_park_crime <- data.table::rbindlist(small_park_crime_list)
 ################################################################################
 #           3 - Estimating crimes reported multi-access parks (19)             #
 ################################################################################
+
+awkward_parks <- read_excel(
+  "data/376parks_regression1_Change_cost.xlsx"
+  ) %>%
+  filter(
+    !(
+      Old_Site_Ref %in% c(
+        unique(gis_park_lookup$Old_Site_Ref),
+        unique(small_parks$Old_Site_Ref)
+        )
+      ),
+    !is.na(Old_Site_Ref)
+    ) %>%
+  select(
+    Old_Site_Ref, Site_Name, Postcode
+  )
+
+writexl::write_xlsx(awkward_parks, "output/parks_needing_shape_files.xlsx")
+
 
 
 ################################################################################

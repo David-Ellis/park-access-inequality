@@ -23,13 +23,13 @@ map <- plot_empty_map(
   area_name = "Birmingham"
 )
 
-map <- add_radii(
-  map,
-  park_coords,
-  radii = distance,
-  alpha = 0.1,
-  color = "darkgreen"
-)
+# map <- add_radii(
+#   map,
+#   park_coords,
+#   radii = distance,
+#   alpha = 0.1,
+#   color = "darkgreen"
+# )
 
 map <- add_points(
   map,
@@ -84,7 +84,7 @@ valid_park_coords <- park_coords %>%
   filter(
     !is.na(Longitude)
   )
-
+source("R/functions.R")
 valid_park_info <- get_all_park_info(
   valid_park_coords,
   distance*1000

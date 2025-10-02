@@ -82,6 +82,7 @@ get_LSOA_coverage <- function(
     all_postcodes[[i]] <- postcodes_i %>%
       select(Postcode, LSOA21)
   }
+  
   LSOA_coverage <- data.table::rbindlist(all_postcodes) %>%
     # Remove double counted postcodes
     distinct() %>%
@@ -101,6 +102,11 @@ get_LSOA_coverage <- function(
   # Check for unmatched rows
   if (any(is.na(LSOA_coverage$Total_Postcodes))) {
     stop("Error: Not all rows in the left table have a match in the right table.")
+  }
+  
+  # Check for unmatched rows
+  if (nrow(LSOA_coverage)==0) {
+    stop(paste("Error: No overlapping LSOAs found for:", park_name))
   }
 
   return(LSOA_coverage)
@@ -241,6 +247,9 @@ get_all_park_info <- function(
       print(paste(
         name_i, ncol(df_list[[name_i]]))
       )
+    }
+    if (ncol(df_list[[name_i]]) == 4) {
+      print(df_list[[name_i]])
     }
   }
   
