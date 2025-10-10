@@ -15,6 +15,11 @@ library(stringr)
 #                            0 - Load Crime Data                               #
 ################################################################################
 
+Park376List <- read_excel(
+  "data/376parks_regression1_Change_cost.xlsx"
+) %>%
+  filter(!is.na(Old_Site_Ref))
+
 # Get Birmingham LSOAs using BSol.mapR 
 # (https://github.com/Birmingham-and-Solihull-ICS/BSol.mapR)
 Birmingham_LSOAs <- BSol.mapR::LSOA11@data %>%
@@ -194,11 +199,138 @@ awkward_parks <- read_excel(
   select(
     Old_Site_Ref, Site_Name, Postcode
   )
+# 
+# writexl::write_xlsx(awkward_parks, "output/parks_needing_shape_files.xlsx")
 
-writexl::write_xlsx(awkward_parks, "output/parks_needing_shape_files.xlsx")
+library(sf)
 
+awk_park_path <- "data/awkward_park_coordinates"
+awk_park_coords_files <- list.files(path = awk_park_path)
+
+crime_shape <- st_as_sf(
+  crime_data,
+  coords=c("Longitude","Latitude"), 
+  crs=4326
+  )
+
+park_crime_reports <- list()
+awkward_parks <- c()
+for (file_i in awk_park_coords_files) {
+  Old_Site_Ref <- stringr::str_extract(file_i, "\\w{7}")
+  
+  path_i <- file.path(awk_park_path, file_i)
+  data_i <- read.csv(path_i, col.names = c("LAT", "LONG")) %>%
+    select(c("LONG", "LAT"))
+  if (Old_Site_Ref != "0385POA") {
+    data_i <- rbind(data_i, data_i[1,1:2])
+  } else {
+    # Add the "other side" of the Harborne Walkway
+    data_i <- rbind(data_i, 
+          data_i %>%
+            arrange(-row_number()) %>%
+            mutate(
+              LONG = LONG + 0.001
+            )
+          )
+    data_i <- rbind(data_i, data_i[1,1:2])
+  }
+  
+  shape_i <- st_polygon(list(as.matrix(data_i))) |> 
+    st_sfc(crs = 4326) |> 
+    st_sf() %>%
+    mutate(
+      Old_Site_Ref = Old_Site_Ref
+    )
+  
+  if (Old_Site_Ref == "0385POA") {
+    map <- tmap::tm_shape(shape_i) +
+      tmap::tm_borders() 
+    save_map(map, "output/fix-map.html")
+  }
+  
+  park_crime_reports[[Old_Site_Ref]] <- crime_data[
+    lengths(st_within(crime_shape, shape_i)) > 0,
+    ] %>%
+    count(
+      Year, CrimeType
+    ) %>%
+    mutate(
+      Old_Site_Ref = Old_Site_Ref
+    ) %>%
+    rename(
+      Crime_Reports = n
+    )
+  
+  awkward_parks = c(awkward_parks, Old_Site_Ref)
+}
+
+awkward_park_crimes <- data.table::rbindlist(park_crime_reports) %>%
+  left_join(
+    Park376List %>%
+      select(c(Old_Site_Ref, Site_Name)),
+    by = join_by(Old_Site_Ref)
+  ) %>%
+  select(colnames(small_park_crime))
 
 
 ################################################################################
 #                            Combine data and save                             #
-################################################################################ 
+################################################################################
+
+all_parks_included <- c(
+  unique(gis_park_lookup$Old_Site_Ref),
+  unique(small_parks$Old_Site_Ref),
+  awkward_parks
+)
+
+all_years <- unique(crime_data$Year)
+
+all_crime_type <- unique(crime_data$CrimeType)
+
+all_park_crime_reports <- expand.grid(
+  all_parks_included,
+  all_years,
+  all_crime_type
+) %>%
+  rename(
+    Old_Site_Ref = Var1,
+    Year = Var2,
+    CrimeType = Var3
+  ) %>%
+  filter(
+    Old_Site_Ref %in% Park376List$Old_Site_Ref
+  ) %>%
+  left_join(
+    data.table::rbindlist(
+      list(
+        gis_crime,
+        small_park_crime,
+        awkward_park_crimes
+        )
+      ),
+    by = join_by("Year", "Old_Site_Ref", "CrimeType")
+  ) %>%
+  mutate(
+    Crime_Reports = ifelse(is.na(Crime_Reports), 0, Crime_Reports),
+  ) %>%
+  select(-Site_Name)
+
+# Save crime reporting data
+writexl::write_xlsx(all_park_crime_reports, "data/all_park_crime_reports.xlsx")
+
+################################################################################
+#                                Output check                                  #
+################################################################################
+
+still_missing <- Park376List %>%
+  filter(
+    !(Old_Site_Ref %in% all_parks_included)
+  ) %>% 
+  select(
+    c(Old_Site_Ref, Site_Name)
+  )
+
+if (nrow(still_missing) > 0) {
+  cat("Crime reporting data has not been collected for the following parks:\n")
+  print(still_missing)
+}
