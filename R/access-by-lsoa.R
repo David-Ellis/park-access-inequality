@@ -318,3 +318,90 @@ ggsave(
   width = 5,
   height = 7
 )
+
+
+
+################################################################################
+#                             m^2 per person                                 #
+################################################################################
+
+# Calculate population in each LSOA
+brum_pop <- read_excel("data/demographics/brum-eths-lsoa21.xlsx") %>%
+  group_by(
+    LSOA21
+  ) %>%
+  summarise(
+    pop = sum(Observation)
+  )
+
+sq_m_pp <- brum_lsoas %>%
+  left_join(
+    brum_pop,
+    by = join_by("LSOA21")
+  ) %>%
+  mutate(
+    sq_m_pp = 1000*total_park_size_1km / pop,
+    sq_m_pp_map = ifelse(sq_m_pp<1, sq_m_pp, 1),
+    lowest20perc = ifelse(sq_m_pp<quantile(sq_m_pp,0.2), 1, 0)
+  )
+
+sq_m_pp_map <- plot_map(
+  sq_m_pp,
+  value_header = "sq_m_pp_map",
+  map_type = "LSOA21",
+  area_name = "Birmingham",
+  map_title = "Square meters of park per 1000 people  (within 1km)",
+  style = "cont",
+  breaks = c(0, 0.5, 1, 1),
+  labels = c("0", "0.5", "1.0","1+")
+)
+sq_m_pp_map
+
+save_map(sq_m_pp_map,
+         "output/park-access/sq_m_pp_map.png")
+
+
+lowest20percMap <- plot_map(
+  sq_m_pp,
+  value_header = "lowest20perc",
+  map_type = "LSOA21",
+  area_name = "Birmingham",
+  map_title = "LSOAs in the lowest 20% of park access per person"
+)
+lowest20pelowest20percMaprc
+
+save_map(lowest20percMap,
+         "output/park-access/lowest20percMap.png")
+
+
+sq_m_pp_IMD <- sq_m_pp %>%
+  left_join(
+    read_excel("data/demographics/IMD by LSOA 2021.xlsx"),
+    by = join_by("LSOA21")
+  ) %>%
+  group_by(
+    IMD_Quintile
+  ) %>%
+  summarise(
+    pop = sum(pop),
+    total_park_size_1km = sum(total_park_size_1km)
+  ) %>%
+  mutate(
+    sq_m_pp = 1000*total_park_size_1km / pop
+  )
+
+sq_m_pp_imd_plot <- ggplot(sq_m_pp_IMD, aes(x = IMD_Quintile, y = sq_m_pp)) +
+  geom_col(fill = "#006D7D") +
+  theme_bw() +
+  labs(
+    x = "IMD Quintile",
+    y = ""
+  ) +
+  ggtitle("Square Meters per 1000 people (within 1km)")
+sq_m_pp_imd_plot
+ggsave(
+  "output/park-access/sq_m_pp_IMD.png",
+  plot = sq_m_pp_imd_plot, 
+  width = 5,
+  height = 3
+)
