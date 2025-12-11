@@ -96,31 +96,12 @@ get_park_info(
   "Rectory Park",
   distance*1000
 )
-# Create NA dataframe for parks with invalid postcodes
-invalid_park_info <- park_coords %>%
-  filter(
-    is.na(Longitude)
-  ) %>%
-  select(
-    Site_Name, 
-  ) %>%
-  mutate(
-    !!!setNames(
-      rep(list(NA),
-          length(colnames(valid_park_info)[2:10])),
-      colnames(valid_park_info)[2:10])
-    )
 
 # combine valid and invalid park data
-all_park_info <- rbind(
-  valid_park_info,
-  invalid_park_info
-  )
-
-head(all_park_info)
+head(valid_park_info)
 
 # Add Old_Site_Ref back in
-all_park_info <- all_park_info %>%
+all_park_info <- valid_park_info %>%
   left_join(
     read_excel(
       "data/park_multi_access_info_2024.xlsx",
@@ -138,7 +119,20 @@ all_park_info <- all_park_info %>%
 
 
 # Save output
-write_xlsx(all_park_info, "output/park_demographics.xlsx")
+write_xlsx(all_park_info, "output/park_demographics-v2.xlsx")
+
+
+############################################################################
+#                    Total Population Outside Birmingham                   #
+############################################################################
+
+all_brum <- valid_park_coords %>% 
+  mutate(Site_Name = "All together")
+
+get_park_info(
+  all_brum,
+  park_name = "All together",
+  distance*1000)
 
 ############################################################################
 #                          Basic Visualisations                            #

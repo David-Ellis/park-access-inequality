@@ -36,14 +36,26 @@ wm_eths <- read.csv(
     LSOA21, LSOA_Name, Ethnic_Group, Observation
   ) %>%
   # Remove `Does not apply` ethnic group since all zero
-  filter(Ethnic_Group != "Does not apply" )
+  filter(Ethnic_Group != "Does not apply" ) %>%
+  mutate(
+    In_Birmingham = grepl(
+      "Birmingham", 
+      LSOA_Name
+    ) 
+  )
 wm_eths <- wm_eths%>%
   # Calculate population total
   rbind(
     wm_eths %>%
       group_by(LSOA21, LSOA_Name) %>%
       summarise(Observation = sum(Observation)) %>%
-      mutate(Ethnic_Group = "Total_Population")
+      mutate(
+        Ethnic_Group = "Total_Population",
+        In_Birmingham = grepl(
+          "Birmingham", 
+          LSOA_Name
+          )
+        )
   ) %>%
   arrange(LSOA21)
 
@@ -82,7 +94,7 @@ get_LSOA_coverage <- function(
     all_postcodes[[i]] <- postcodes_i %>%
       select(Postcode, LSOA21)
   }
-  
+
   LSOA_coverage <- data.table::rbindlist(all_postcodes) %>%
     # Remove double counted postcodes
     distinct() %>%
@@ -143,9 +155,21 @@ get_park_pops <- function(
   park_pops <- LSOA_pops %>%
     group_by(Ethnic_Group) %>%
     summarise(
-      Est_Num = sum(Est_Num)
+      Value = sum(Est_Num)
       )
+  
+  in_birmingham <- LSOA_pops %>% 
+    filter(Ethnic_Group == "Total_Population") %>% 
+    group_by(Ethnic_Group) %>%
+    summarise(
+      Value = sum(In_Birmingham * Est_Num)/sum(Est_Num)
+      ) %>%
+    mutate(
+      Ethnic_Group = "Brum_Fraction"
+    )
 
+  park_pops <- rbind(park_pops, in_birmingham)
+  
   return(park_pops)
 
 }
@@ -163,7 +187,7 @@ get_park_imd <- function(LSOA_pops) {
   }
   park_IMD <- park_LSOA_IMDs %>%
     summarise(
-      IMD_rank = sum(IMD_rank * Est_Num ) / sum(Est_Num)
+      IMD_rank = sum(IMD_rank * Est_Num ) / sum(Est_Num),
     ) %>%
     mutate(
       IMD_quintile =  floor(5 * IMD_rank/32844 + 1),
@@ -204,10 +228,10 @@ get_park_info <- function(
   park_pops <- get_park_pops(park_LSOA_pops) %>%
     rename(
       Metric = Ethnic_Group,
-      Value = Est_Num
+      Value = Value
       ) %>%
     mutate(
-      Value = round(Value, 1)
+      Value = round(Value, 3)
     )
 
   output_df <- data.frame(
@@ -258,7 +282,7 @@ get_all_park_info <- function(
     # Convert numeric data back to numeric
     mutate(
       across(c(IMD_rank,IMD_quintile,IMD_decile,
-               `Total_Population`,
+               `Total_Population`, Brum_Fraction,
                `Asian, Asian British or Asian Welsh`,
                `Black, Black British, Black Welsh, Caribbean or African`,
                `Mixed or Multiple ethnic groups`,
@@ -270,7 +294,7 @@ get_all_park_info <- function(
     select(
       Site_Name, 
       IMD_rank, IMD_quintile, IMD_decile, 
-      Total_Population,
+      Total_Population, Brum_Fraction,
       `Asian, Asian British or Asian Welsh`,
       `Black, Black British, Black Welsh, Caribbean or African`,
       `Mixed or Multiple ethnic groups`,
