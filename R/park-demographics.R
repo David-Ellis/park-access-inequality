@@ -113,13 +113,10 @@ all_park_info <- valid_park_info %>%
   select(
     Site_Name, Old_Site_Ref, everything()
   )
-  
-  
-  
 
 
 # Save output
-write_xlsx(all_park_info, "output/park_demographics-v2.xlsx")
+write_xlsx(all_park_info, "output/park_demographics-v3.xlsx")
 
 
 ############################################################################
@@ -182,3 +179,44 @@ IMD_dist_plt <- ggplot(all_park_info,
 IMD_dist_plt
 ggsave("output/figures/imd_dist.png", plot = IMD_dist_plt,
        width = 5, height = 3, dpi = 300)
+
+# Method comparison
+
+demo2 <- read_excel("output/park_demographics-v2.xlsx") %>%
+  mutate(
+    `IMD Rank` = IMD_rank,
+    `IMD Decile` = IMD_decile,
+    `Total Population` = Total_Population
+  ) %>%
+  select(
+    c("Old_Site_Ref", "IMD Rank", "IMD Decile", "Total Population")
+  ) %>%
+  tidyr::pivot_longer(
+    cols = c("IMD Rank", "IMD Decile", "Total Population"),
+    names_to = "Metric",
+    values_to = "Old Method Value"
+  )
+
+demo3 <- read_excel("output/park_demographics-v3.xlsx") %>%
+  mutate(
+    `IMD Rank` = IMD_rank,
+    `IMD Decile` = IMD_decile,
+    `Total Population` = Total_Population
+  ) %>%
+  select(
+    c("Old_Site_Ref", "IMD Rank", "IMD Decile", "Total Population")
+    ) %>%
+  tidyr::pivot_longer(
+    cols = c("IMD Rank", "IMD Decile", "Total Population"),
+    names_to = "Metric",
+    values_to = "New Method Value"
+  )
+
+combined_demographics <- demo2 %>%
+  left_join(demo3, by = join_by("Old_Site_Ref", "Metric"))
+
+ggplot(combined_demographics, 
+       aes(x = `Old Method Value`, y = `New Method Value`)) +
+  geom_point(alpha = 0.5) +
+  theme_bw() +
+  facet_wrap(~Metric, scales = "free", ncol = 2)

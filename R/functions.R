@@ -1,6 +1,8 @@
 library(readxl)
 library(dplyr)
 
+`%>%` <- dplyr::`%>%`
+
 Mode <- function(x) {
   ux <- unique(x)
   ux[which.max(tabulate(match(x, ux)))]
@@ -14,7 +16,7 @@ wm_postcodes <- read.csv(
     IMD_rank = Index.of.Multiple.Deprivation
   ) %>%
   select(
-    Postcode, Longitude, Latitude, LSOA21, IMD_rank
+    Postcode, Longitude, Latitude, LSOA21, IMD_rank, Population
   )
 
 LSOA21_IMDs <- wm_postcodes %>%
@@ -60,11 +62,13 @@ wm_eths <- wm_eths%>%
   arrange(LSOA21)
 
 
-LSOA21_postcode_counts <- wm_postcodes %>%
-  select(LSOA21, Postcode) %>%
+LSOA21_population_total <- wm_postcodes %>%
+  select(LSOA21, Postcode, Population) %>%
   distinct() %>%
-  count(LSOA21) %>%
-  rename(Total_Postcodes = n)
+  group_by(LSOA21) %>%
+  summarise(
+    Total_Population = sum(Population, na.rm = T)
+  )
 
 get_LSOA_coverage <- function(
   # Data frame for all parks including longitude and latitude of each
@@ -92,22 +96,25 @@ get_LSOA_coverage <- function(
                                      lat = Latitude,
                                      radius = dist_m))
     all_postcodes[[i]] <- postcodes_i %>%
-      select(Postcode, LSOA21)
+      select(Postcode, LSOA21, Population)
   }
 
   LSOA_coverage <- data.table::rbindlist(all_postcodes) %>%
     # Remove double counted postcodes
     distinct() %>%
     # count number of postcodes within each LSOA
-    count(LSOA21) %>%
+    group_by(LSOA21) %>%
+    summarise(
+      Population_Inside = sum(Population, na.rm = T)
+    ) %>%
     # Join to total number of postcodes in each LSOA
     left_join(
-      LSOA21_postcode_counts,
+      LSOA21_population_total,
       by = join_by("LSOA21")
     ) %>%
     # Calculate percentage of LSOA postcodes within 10 minutes walk
     mutate(
-      overlap_frac = n / Total_Postcodes,
+      overlap_frac = Population_Inside / Total_Population,
       overlap_perc = 100 * overlap_frac
     )
 
