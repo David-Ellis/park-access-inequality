@@ -15,6 +15,10 @@ wm_postcodes <- read.csv(
     LSOA21 = LSOA21.Code,
     IMD_rank = Index.of.Multiple.Deprivation
   ) %>%
+  filter(
+    #In.Use. == TRUE,
+    !(Postcode %in% c("B4 7ET", "B18 4AS")) 
+  ) %>%
   select(
     Postcode, Longitude, Latitude, LSOA21, IMD_rank, Population
   )

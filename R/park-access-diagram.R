@@ -46,7 +46,6 @@ park_shape <- st_as_sf(get_points_shape(park_coords))
 postcodes <- read.csv("data/West Midlands postcodes.csv") %>%
   clean_names() %>%
   filter(
-    in_use == "Yes",
     grepl("Birmingham", constituency) | constituency == "Sutton Coldfield",
     # Remove Aston main building and the prison
     !(postcode %in% c("B4 7ET", "B18 4AS")) 
